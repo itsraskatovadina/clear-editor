@@ -1,0 +1,6 @@
+
+my/
+test_doc/
+__pycache__/
+
+*.ini
