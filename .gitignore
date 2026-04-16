@@ -2,5 +2,6 @@
 my/
 test_doc/
 __pycache__/
+lib/__pycache__/
 
 *.ini
