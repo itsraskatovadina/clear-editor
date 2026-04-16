@@ -13,11 +13,9 @@ class FileDocEditor(QTextEdit):
 	
 	doc_state_changed = pyqtSignal()
  
-	def __init__(self, win_main, parent=None, path=None):
+	def __init__(self, parent=None, path=None):
+		super(FileDocEditor, self).__init__(parent)
 		""" if  path == None - this is new file """
-		super(FileDocEditor, self).__init__()
-
-		self.win_main = win_main
 		self.path = path
 		if path:
 			self.load_from_file()
@@ -25,7 +23,6 @@ class FileDocEditor(QTextEdit):
 				
 		self.textChanged.connect(self.current_doc_changed)
 		self.doc_state_changed.connect(self.current_doc_changed)
-		self.textChanged.connect(self.win_main.update_current_tab_title)
 		
 	def load_from_file(self):
 		file_content = self.path.read_text(encoding="utf-8")
@@ -73,20 +70,18 @@ class FileDocEditor(QTextEdit):
 class DocTabPanel(QTabWidget): 
 	""" Create tab widget for multiple documents """
 	
-	new_window_title = pyqtSignal()
+	change_current_tab_status = pyqtSignal()
 	new_status_msg = pyqtSignal(str)
 	
-	def __init__(self, win_main, parent=None, path=None, detect_externally_modified=False):
-		""" if  path == None - this is new file """
+	def __init__(self, parent=None, editor=FileDocEditor, detect_externally_modified=False):
 		super(DocTabPanel, self).__init__(parent)
 		
-		self.win_main = win_main
+		self.EditorCls = editor
 		self.setTabsClosable(True)
 		self.tabCloseRequested.connect(self.close_tab)
 		self.currentChanged.connect(self.current_tab_changed)
-		self.new_window_title.connect(self.win_main.update_window_title)
-		self.new_status_msg.connect(self.win_main.update_status_bar)
-		
+
+		self.detect_externally_modified = detect_externally_modified
 		if detect_externally_modified:
 			self.currentChanged.connect(self.set_focus_on_editor)
 			app.focusChanged.connect(self.app_focus_changed)
@@ -100,10 +95,10 @@ class DocTabPanel(QTabWidget):
 		
 	def current_tab_changed(self, index):
 		""" whenever the current page index changes """
-		self.new_window_title.emit()
+		self.change_current_tab_status.emit()
 		
 	def update_current_tab_title(self):
-		""" called from editor -> self.textChanged.connect(self.win_main.update_current_tab_title), 
+		""" called from editor -> editor.textChanged.connect(self.update_current_tab_title), 
 		    selt.save_tab(), selt.save_as_tab """
 		if self.count() == 0:
 			return
@@ -112,7 +107,7 @@ class DocTabPanel(QTabWidget):
 		path_name, full_path_name, mod_label = current_editor.doc_info()
 		self.setTabText(current_index, path_name + mod_label)  
 		self.setTabToolTip(current_index, full_path_name)
-		self.new_window_title.emit()
+		self.change_current_tab_status.emit()
 			
 	def add_tab(self, path: Path):
 		""" if  path == None - this is new file """
@@ -125,14 +120,16 @@ class DocTabPanel(QTabWidget):
 			if not self.check_path_exists(path):
 				return False
 			
-		editor = FileDocEditor(self, path=path)
+		editor = self.EditorCls(parent=self, path=path)
+		editor.textChanged.connect(self.update_current_tab_title)
+		
 		path_name = editor.doc_path_name()
 		full_path_name = editor.doc_full_path()
 		
 		index = self.addTab(editor, path_name)
 		self.setTabToolTip(index, full_path_name)
 		self.setCurrentIndex(index)
-		self.new_window_title.emit()
+		self.change_current_tab_status.emit()
 		self.new_status_msg.emit(f"Opened {path_name}")
 		return True
 		
@@ -151,7 +148,7 @@ class DocTabPanel(QTabWidget):
 		if editor.save_to_file():
 			path_name = editor.doc_path_name()
 			self.update_current_tab_title()  
-			self.new_window_title.emit()
+			self.change_current_tab_status.emit()
 			self.new_status_msg.emit(f"Saved {path_name}")
 			return True
 				
@@ -169,7 +166,7 @@ class DocTabPanel(QTabWidget):
 		if editor.save_as_file(path):
 			path_name = editor.doc_path_name()
 			self.update_current_tab_title()  
-			self.new_window_title.emit()
+			self.change_current_tab_status.emit()
 			self.new_status_msg.emit(f"Saved {path_name}")
 			return True
 
@@ -188,13 +185,13 @@ class DocTabPanel(QTabWidget):
 			elif reply == QMessageBox.Yes:
 				if self.save_tab():
 					self.removeTab(index)
-					self.new_window_title.emit()
+					self.change_current_tab_status.emit()
 					return True
 				else:
 					return False
 		'''if the text has not changed or Discard is pressed '''
 		self.removeTab(index)
-		self.new_window_title.emit()
+		self.change_current_tab_status.emit()
 		return True
 					
 	def close_all_tab(self):
@@ -212,7 +209,7 @@ class DocTabPanel(QTabWidget):
 			return False
 		else:
 			return True
-				
+			
 	def set_focus_on_editor(self):
 		""" When displaying the main window or switching to it in the OS,
 		 in some cases only the QTabBar gets the focus. """
@@ -223,6 +220,8 @@ class DocTabPanel(QTabWidget):
 	def check_current_tab_externally_modified(self, editor):
 		""" warning - if no file or file has been changed 
 			self.currentChanged.connect(self.check_current_tab_externally_modified)	"""
+		if not self.detect_externally_modified:
+			return
 		if editor.path:
 			if not self.check_path_exists(editor.path):
 				return False
@@ -239,12 +238,11 @@ class DocTabPanel(QTabWidget):
 		current_editor = self.get_current_editor()
 		if current_editor and current_editor.path:
 			file_name = current_editor.doc_path_name()
-			if now and now.__class__.__name__ == "FileDocEditor":
+			if now and now.__class__ == self.EditorCls:
 				#print(f"focusChanged {file_name}")
 				app.focusChanged.disconnect(self.app_focus_changed)
 				self.check_current_tab_externally_modified(current_editor)
 				app.focusChanged.connect(self.app_focus_changed)
-			
 					
 class MultiDocEditor(QMainWindow):
 	def __init__(self):
@@ -258,21 +256,24 @@ class MultiDocEditor(QMainWindow):
 		self.recent_files = []
 
 		self.setWindowTitle(self.win_title)
-		#self.setWindowIcon(QIcon('icons/main.png'))	
 		self.setFont(self.win_font)
 		
 		self.restoreSettings()
 		self.move(self.settings.value("geometry/pos", QPoint(100, 100)))
 		self.resize(self.settings.value("geometry/size", QSize(1200, 800)))
 		
+		self.doc_tab_panel = DocTabPanel(self, detect_externally_modified=True)
+
 		self.create_menu_bar()
 		self.create_status_bar()
-		self.doc_tab_panel = DocTabPanel(self, detect_externally_modified=True)
 		
 		central_widget = QWidget()
 		self.setCentralWidget(central_widget)
 		layout = QVBoxLayout(central_widget)
 		layout.addWidget(self.doc_tab_panel)
+		
+		self.doc_tab_panel.change_current_tab_status.connect(self.update_window_title)
+		self.doc_tab_panel.new_status_msg.connect(self.update_status_bar)
 		
 		self.doc_tab_panel.new_tab()
 
