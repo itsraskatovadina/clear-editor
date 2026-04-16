@@ -159,7 +159,7 @@ class DocTabPanel(QTabWidget):
 		
 		file_path = QFileDialog.getSaveFileName(self, "Save As", os.getcwd())[0]
 		if file_path == '':
-			self.win_main.update_status_bar("Cancelled", 2000)
+			self.new_status_msg.emit("Cancelled")
 			return 
 			
 		path = Path(file_path)
