@@ -9,41 +9,17 @@ import sys
 import os
 import datetime
 
+if __name__ == '__main__':
+	from editor_ext import *
+else:
+	from lib.editor_ext import *
+
 def get_app():
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
     return app
-    
-class TextEditorExt(QTextEdit):
-	''' Text editor '''
-	def __init__(self, parent=None):
-		super().__init__(parent)
-		
-	def selectedTextProcessing(self, func):
-		''' processing selected text '''
-		cursor = self.textCursor()
-		if cursor.hasSelection():
-			selected_text = cursor.selectedText().replace("\u2029", "\n")
-			# replace it, put it in the clipboard, paste it into the selected area
-			# done via Copy/Paste so that there is only one action left in the Undo/Redo history.
-			outtxt = func(selected_text)
-			clipboard = QApplication.clipboard()
-			clipboard.setText(outtxt)
-			self.paste()
-					
-	def remove_empty_lines_in_selected(self):
-		''' remove the empty lines in the selected block  '''
-		self.selectedTextProcessing(self.remove_empty_lines)
-		
-	def remove_empty_lines(self, txt):
-		lines = txt.split('\n')
-		non_empty_lines = []
-		for line in lines:
-			if line:	
-				non_empty_lines.append(line)
-		return '\n'.join(non_empty_lines)
-		
+ 
 class FileDocEditor(QTextEdit):
 	
 	doc_state_changed = pyqtSignal()
@@ -54,7 +30,7 @@ class FileDocEditor(QTextEdit):
 		self.path = path
 		if path:
 			self.load_from_file()
-		self.last_change_time = datetime.datetime.now()
+			self.last_file_mtime = datetime.datetime.now()
 				
 		self.textChanged.connect(self.current_doc_changed)
 		self.doc_state_changed.connect(self.current_doc_changed)
@@ -65,7 +41,7 @@ class FileDocEditor(QTextEdit):
 		if file_content:
 			self.setText(file_content)
 			self.document().setModified(False)
-			self.last_change_time = datetime.datetime.now()
+			self.last_file_mtime = datetime.datetime.now()
 			self.doc_state_changed.emit()
 			return True
 			
@@ -82,7 +58,7 @@ class FileDocEditor(QTextEdit):
 		return self.doc_path_name(), self.doc_full_path(), self.doc_modification_label()
 			
 	def current_doc_changed(self):
-		self.last_change_time = datetime.datetime.now()
+		self.last_file_mtime = datetime.datetime.now()
 		
 	def save_to_file(self):  
 		"""Writing an existing file with old name"""
@@ -103,15 +79,16 @@ class FileDocEditor(QTextEdit):
 			stat = self.path.stat()
 			file_mtime = stat.st_mtime
 			file_datetime = datetime.datetime.fromtimestamp(file_mtime)
-			return True if self.last_change_time < file_datetime else False
-
+			return True if self.last_file_mtime < file_datetime else False
+			
+'''
 class FileDocEditorExt(FileDocEditor, TextEditorExt):
 
 	def __init__(self, parent=None, path=None):
 		""" if  path == None - this is new file """
 		super(FileDocEditorExt, self).__init__(parent)
-		
-		
+'''
+
 class DocTabPanel(QTabWidget): 
 	""" Create tab widget for multiple documents """
 	
@@ -296,7 +273,7 @@ class DocTabPanel(QTabWidget):
 				QMessageBox.warning(self, "file on the disk has been changed",
 					f"The file {file_name} on the disk is newer than in the editor", 
 					buttons=QMessageBox.Close, defaultButton=QMessageBox.Close)
-				editor.last_change_time = datetime.datetime.now()
+				editor.last_file_mtime = datetime.datetime.now()
 
 	def app_focus_changed(self, old, now):
 		""" app.focusChanged.connect(self.app_focus_changed)  """
@@ -339,9 +316,10 @@ class MainWin(QMainWindow):
 			event.ignore()
     			
 if __name__ == '__main__':
+
 	app = QApplication(sys.argv)
 	win = MainWin()	
 	win.show()
 	sys.exit(app.exec())
-	
+
 
