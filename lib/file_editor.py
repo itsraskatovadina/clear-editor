@@ -10,10 +10,12 @@ import datetime
 from lib.text_editor import *
 	
 class FileEditor(QWidget):
-
+	
+	html_extensions = ["html", "htm", "php"]
 	untitled_name = "untitled"
 	status_changed = pyqtSignal()  
 	modification_changed = pyqtSignal(bool)
+	cursor_position_changed = pyqtSignal(int)
 	
 	''' path: None | Path '''
 	def __init__(self, parent=None, editor=QTextEdit, path=None):
@@ -25,6 +27,8 @@ class FileEditor(QWidget):
 		hbox.addWidget(self.editor)		
 		self.setLayout(hbox)	
 		self.editor.document().modificationChanged.connect(self.on_editor_modification_changed)
+		self.editor.cursorPositionChanged.connect(self.on_cursor_position_changed)
+
 		self.modified = False
 		self.path = path
 		if self.path:
@@ -36,7 +40,11 @@ class FileEditor(QWidget):
 
 	def isModified(self):
 		return self.modified
-			
+
+	def on_cursor_position_changed(self):
+		line_num = self.editor.textCursor().blockNumber() + 1
+		self.cursor_position_changed.emit(line_num)
+
 	def get_modification_label(self):
 		return "*" if self.modified else ""
 		
@@ -52,7 +60,11 @@ class FileEditor(QWidget):
 	def load_from_file(self):
 		file_content = self.path.read_text(encoding="utf-8")
 		if file_content:
-			self.editor.setText(file_content)
+			suffix = self.path.suffix[1:]
+			if suffix in FileEditor.html_extensions:
+				self.editor.setPlainText(file_content)
+			else:
+				self.editor.setText(file_content)
 			self.last_file_mtime = datetime.datetime.now()
 			self.status_changed.emit()
 			return True

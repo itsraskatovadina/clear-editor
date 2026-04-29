@@ -17,6 +17,7 @@ class TabPanel(QTabWidget):
 
 	tab_status_changed = pyqtSignal()
 	file_opened_or_saved_as = pyqtSignal(str)
+	editor_cursor_position_changed = pyqtSignal(int)
 	new_status_msg = pyqtSignal(str)
 
 	def __init__(self, parent=None, editor=QTextEdit):
@@ -85,6 +86,7 @@ class TabPanel(QTabWidget):
 				
 		editor = FileEditor(parent=self, path=path, editor=self.editor_class)
 		editor.status_changed.connect(self.on_tab_status_changed)
+		editor.cursor_position_changed.connect(self.editor_cursor_position_changed)
 		path_name = editor.get_path_name()
 		index = self.addTab(editor, path_name)
 		self.setCurrentIndex(index)
