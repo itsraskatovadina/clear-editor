@@ -4,8 +4,14 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
     
-class TextEditorExt(QTextEdit):
-	''' Text editor '''
+from lib.editorlib import EditLib
+
+class TextEditor(QTextEdit):
+
+	text_actions = []
+	text_actions.append({'act': "remove_empty_lines_in_selected", 'name': "Remove empty lines"})
+	text_actions.append({'act': "capitalize_first_letters_in_selected", 'name': "Capitalize first letters"})
+	
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		
@@ -23,13 +29,8 @@ class TextEditorExt(QTextEdit):
 					
 	def remove_empty_lines_in_selected(self):
 		''' remove the empty lines in the selected block  '''
-		self.selectedTextProcessing(self.remove_empty_lines)
+		self.selectedTextProcessing(EditLib.remove_empty_lines)
 		
-	def remove_empty_lines(self, txt):
-		lines = txt.split('\n')
-		non_empty_lines = []
-		for line in lines:
-			if line:	
-				non_empty_lines.append(line)
-		return '\n'.join(non_empty_lines)
-		
+	def capitalize_first_letters_in_selected(self):
+		''' capitalize the first letters in the selected block '''
+		self.selectedTextProcessing(EditLib.capital_first_letter)
