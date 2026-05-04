@@ -10,8 +10,8 @@ import os
 
 from lib.file_tab_panel import *
 from lib.msg_panel import *
-import lib.iclear as iclib
-from lib.wclearnav import WinNodesNav	
+import libiclear.iclear as iclib
+from libiclear.wiclear import WinNodesNav, IclearInputDialog
 					
 class MultiEditor(QMainWindow):
 	
@@ -22,8 +22,8 @@ class MultiEditor(QMainWindow):
 		self.restoreSettings()
 		
 		self.recent_files = self.settings.value("recent_files", []) or []
-		self.iclear_support = self.settings.value("iclear_support", None) or None
-		
+		self.iclear_support = self.settings.value("iclear/support", None) or None
+
 		self.setWindowTitle(self.win_title)
 		self.setFont(QFont('SansSerif', int(self.settings.value("font_point_size", 12)) ))
 		
@@ -32,6 +32,7 @@ class MultiEditor(QMainWindow):
 		
 		self.tab_panel = TabPanel(parent=self, editor=TextEditor)
 		self.msg_panel = MsgPanel(parent=self)
+		sys.stderr = StdErrHandler(self.msg_panel.err_box)
 		
 		self.splitter = QSplitter(Qt.Vertical)
 		self.splitter.addWidget(self.tab_panel)
@@ -42,13 +43,15 @@ class MultiEditor(QMainWindow):
 		self.create_menu_bar()
 		self.create_status_bar()
 		self.create_toolbar()
-
-		self.tab_panel.tab_status_changed.connect(self.set_window_title)
+		
+		self.set_tab_panel()
+		
+		self.tab_panel.tab_status_changed.connect(self.on_editor_tab_status_changed)
 		self.tab_panel.new_status_msg.connect(self.set_status_bar_msg)
 		self.tab_panel.file_opened_or_saved_as.connect(self.add_recent_file)
 		self.tab_panel.editor_cursor_position_changed.connect(self.set_permanent_status_msg)
 		
-		self.set_tab_panel()
+		self.on_editor_tab_status_changed()
 		
 		
 	def set_tab_panel(self):
@@ -84,6 +87,8 @@ class MultiEditor(QMainWindow):
 		create_menu_action(file_menu, "Reload", self.tab_panel.reload_tab, shortcut="Ctrl+Shift+R")
 		
 		file_menu.addSeparator()
+		create_menu_action(file_menu, "Property", self.tab_panel.property_tab)
+		file_menu.addSeparator()
 		
 		self.recent_files_menu = file_menu.addMenu("Recent files")
 		self.create_recent_files_menu()
@@ -113,13 +118,19 @@ class MultiEditor(QMainWindow):
 		getattr(self.tab_panel.get_current_editor().editor, method_name)()
 		
 	def turn_iclear_support(self):
-		iclear_path = self.iclear_support if self.iclear_support else ''
-		host_path, ok = QInputDialog.getText(self, "input hostpath", "hostpath", text=iclear_path)
-		if ok:
-			if host_path != '':
-				path = Path(host_path)
+		iclear_hostpath = self.settings.value("iclear/hostpath", '') or ''
+		iclear_sitepath = self.settings.value("iclear/sitepath", '') or ''
+		
+		dialog = IclearInputDialog()
+		if dialog.exec_() == QDialog.Accepted:
+			hostpath, sitepath = dialog.get_values()
+			#print(f"Значения из диалога: '{hostpath}', '{sitepath}'")
+			if hostpath.strip() != '':
+				path = Path(hostpath)
 				if path.exists():
-					self.iclear_support = host_path
+					self.iclear_support = True
+					self.iclear_hostpath = hostpath.strip()
+					self.iclear_sitepath = sitepath.strip()
 			else:
 				self.iclear_support = None
 				
@@ -128,22 +139,25 @@ class MultiEditor(QMainWindow):
 			self.create_iclear_tool()
 		
 	def create_iclear_tool(self):
+		self.iclear_hostpath = self.settings.value("iclear/hostpath", '') or ''
+		self.iclear_sitepath = self.settings.value("iclear/sitepath", '') or ''
 		
-		setsite = self.settings.value("iclear/site", "")
-		settop = self.settings.value("iclear/top", "")
-		setman = self.settings.value("iclear/man", "")
-		setcat = self.settings.value("iclear/cat", "")
-		setpage = self.settings.value("iclear/page", "")	
+		host = iclib.IHost("iclear", self.iclear_hostpath, self.iclear_sitepath)
+		host.fill(fill_sites = True, fill_mans = True)
 
-		nodestr = iclib.NodesString(site = setsite, top = settop, man = setman, cat = setcat, page = setpage)
+		nodedict = {'site': self.settings.value("iclear/site", ""),
+					'top': self.settings.value("iclear/top", ""),
+					'man': self.settings.value("iclear/man", ""),
+					"cat": self.settings.value("iclear/cat", ""),
+					"page": self.settings.value("iclear/page", "")}
+					
+		nodnav = iclib.NodesNav(host = host, nodedict = nodedict)
 		
-		host = iclib.Host()	
-		init_nodnav = iclib.NodesNav(host = host, nodestr = nodestr)
-		self.wnodnav = WinNodesNav(init_nodnav, parent=self)
+		self.iclear_widget = WinNodesNav(nodnav, parent=self)
 		
 		iclear_tool_bar = QToolBar('iclear')
 		self.addToolBar(iclear_tool_bar)
-		iclear_tool_bar.addWidget(self.wnodnav)
+		iclear_tool_bar.addWidget(self.iclear_widget)
 			
 	def create_status_bar(self):
 		self.statusBar = QStatusBar()
@@ -155,6 +169,10 @@ class MultiEditor(QMainWindow):
 	def set_permanent_status_msg(self, msg):
 		self.status_msg_box.setText(f"Строка: {msg}")	
 		
+	def on_editor_tab_status_changed(self):
+		self. set_window_title()
+		if self.iclear_support:
+			self.set_iclear_widget()
 		
 	def set_window_title(self):
 		""" self.tab_panel.tab_status_changed.connect(self.set_window_title) """
@@ -164,21 +182,17 @@ class MultiEditor(QMainWindow):
 			self.setWindowTitle(f"{full_path_name + mod_label} - {self.win_title}")
 		else:
 			self.setWindowTitle(self.win_title)
+		
+	def set_iclear_widget(self):
+		if self.iclear_support:
+			current_editor = self.tab_panel.get_current_editor()
+			if current_editor:
+				path = current_editor.path
+				if path:
+					self.iclear_widget.fill_from_page_path(str(path))
 					
 	def set_status_bar_msg(self, msg):
 		self.statusBar.showMessage(msg, 2000)	
-
-		
-	'''
-	def action_open_file(self):
-		self.tab_panel.open_file()
-	def action_save_file(self):
-		self.tab_panel.save_tab()
-	def action_save_as_file(self):
-		self.tab_panel.save_as_tab()
-	def action_reload_file(self):
-		self.tab_panel.reload_tab()
-	'''
 			
 	def action_open_recent_file(self):
 		action = self.sender()
@@ -246,17 +260,35 @@ class MultiEditor(QMainWindow):
 		self.settings.setValue("geometry/pos", self.pos())
 		self.settings.setValue("font_point_size", font_point_size)
 		self.settings.setValue("recent_files", self.recent_files)
-		self.settings.setValue("iclear_support", self.iclear_support)
 		self.settings.setValue("open_files", open_files)
-		
-		self.settings.setValue("iclear/site", self.wnodnav.nodnav.repr_node("site"))		
-		self.settings.setValue("iclear/top", self.wnodnav.nodnav.repr_node("top"))
-		self.settings.setValue("iclear/man", self.wnodnav.nodnav.repr_node("man"))
-		self.settings.setValue("iclear/cat", self.wnodnav.nodnav.repr_node("cat"))
-		self.settings.setValue("iclear/page", self.wnodnav.nodnav.repr_node("page"))
-		
+		if self.iclear_support:
+			self.settings.setValue("iclear/support", self.iclear_support)
+			self.settings.setValue("iclear/hostpath", self.iclear_hostpath)
+			self.settings.setValue("iclear/sitepath", self.iclear_sitepath)
+			self.settings.setValue("iclear/site", self.iclear_widget.nodnav.repr_node("site"))		
+			self.settings.setValue("iclear/top", self.iclear_widget.nodnav.repr_node("top"))
+			self.settings.setValue("iclear/man", self.iclear_widget.nodnav.repr_node("man"))
+			self.settings.setValue("iclear/cat", self.iclear_widget.nodnav.repr_node("cat"))
+			self.settings.setValue("iclear/page", self.iclear_widget.nodnav.repr_node("page"))
 		
 		self.settings.sync()
+		
+class StdErrHandler(QObject):
+    
+	def __init__(self, widget):
+		self.widget = widget
+		self.original_stderr = sys.stderr
+		self.app = QApplication.instance() if (QApplication.instance() is not None) else QApplication(sys.argv)
+
+	def write(self, message):
+		# Выводим в оригинальную stderr (консоль)
+		self.original_stderr.write(message)
+		self.original_stderr.flush()
+		self.widget.append(f"<span style='color: red;'>{message.strip()}</span>")
+		self.app.beep()
+		
+	def flush(self):
+		self.original_stderr.flush()
 		
 if __name__ == "__main__":
 	
@@ -265,6 +297,7 @@ if __name__ == "__main__":
 	app = QApplication(sys.argv)
 	multi_editor = MultiEditor()	
 	multi_editor.setWindowIcon(QIcon('icons/clear.svg'))								 
-	multi_editor.show()										 
+	multi_editor.show()			
+							 
 	sys.exit(app.exec_()) 	
  

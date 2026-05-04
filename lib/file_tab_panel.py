@@ -176,6 +176,16 @@ class TabPanel(QTabWidget):
 		self.tab_status_changed.emit()
 		return True
 		
+	def property_tab(self):
+		current_editor = self.get_current_editor()
+		if current_editor is None:
+			return
+		path = current_editor.path
+		if not self.check_path_exists(path):
+			return
+		QMessageBox.information(self, "Property", str(path),
+			buttons=QMessageBox.Close, defaultButton=QMessageBox.Close)
+		
 	def close_all_tab(self):
 		# Close all tabs in the reverse order 
 		for i in reversed(range(self.count())):

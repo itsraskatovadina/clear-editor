@@ -3,5 +3,6 @@ my/
 test_doc/
 __pycache__/
 lib/__pycache__/
+libiclear/__pycache__/
 
 *.ini
