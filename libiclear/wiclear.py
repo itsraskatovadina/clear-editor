@@ -3,8 +3,8 @@
 from PyQt5.QtWidgets import (QApplication, QWidget, QTabWidget, QDialog, QMessageBox,
 	QPushButton, QTextEdit, QLabel, QLineEdit, QComboBox, QCheckBox, QVBoxLayout, QHBoxLayout,
 	QInputDialog, QFileDialog, QDialogButtonBox, QMenu, QAction, QFrame, QStyle)
-from PyQt5.QtCore import QCoreApplication, QSettings, QSize, QPoint, Qt, QDir
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtCore import QCoreApplication, QSettings, QSize, QPoint, Qt, QDir, QUrl
+from PyQt5.QtGui import QFont, QIcon, QDesktopServices
 from pathlib import Path
 import os
 
