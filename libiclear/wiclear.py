@@ -222,16 +222,17 @@ class IclearWidget(QWidget):
 	def xdg_open(self, page_path):
 		if 	self.winnodnav.nodnav.page: 
 			full_path = self.winnodnav.nodnav.page.full_path()
-			os.system("xdg-open "+full_path)
+			#os.system("xdg-open "+full_path)
+			QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
 		elif self.winnodnav.nodnav.cat: 
 			full_path = self.winnodnav.nodnav.cat.full_path()
-			os.system("xdg-open "+full_path)
+			QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
 		elif self.winnodnav.nodnav.man: 
 			full_path = self.winnodnav.nodnav.man.full_path()
-			os.system("xdg-open "+full_path)
+			QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
 		elif self.winnodnav.nodnav.site:  
 			full_path = self.winnodnav.nodnav.site.full_path()
-			os.system("xdg-open "+full_path)
+			QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
 			
 	def fill_from_page_path(self, page_path):
 		self.winnodnav.nodnav.set_from_page_path(page_path)

@@ -18,7 +18,7 @@ class MultiEditor(QMainWindow):
 	new_error = pyqtSignal(str)
 
 	def __init__(self, parent = None):
-		QWidget.__init__(self, parent)	 
+		QMainWindow.__init__(self, parent)	 
 		
 		self.win_title = "MultiEditor"
 		self.restoreSettings()

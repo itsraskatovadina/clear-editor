@@ -5,6 +5,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
 from pathlib import Path
+import sys
 import os
 
 if __name__ == "__main__":

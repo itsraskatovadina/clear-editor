@@ -82,18 +82,12 @@ class FileEditor(QWidget):
 		self.path = path
 		return self.save_to_file()
 			
-	def reload_from_file11(self):
-		position = self.editor.textCursor().position()
-		print(position)
-		if self.load_from_file():
-			self.set_doc_modified_without_notification(False)
-			self.editor.textCursor().setPosition(position)
-			
 	def set_doc_modified_without_notification(self, flag):
 		self.editor.document().modificationChanged.disconnect(self.on_editor_modification_changed)
 		self.editor.document().setModified(flag)
 		self.modified = flag
 		self.editor.document().modificationChanged.connect(self.on_editor_modification_changed)
+		
 		
 	def is_externally_modified(self): 
 		if self.path:

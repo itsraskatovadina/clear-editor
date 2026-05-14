@@ -104,7 +104,8 @@ class ANode(object):
 		
 	def travers_list_accum(self, func, results = []):
 		""" traversing the tree downwards with a function call on the elements,
-		 the results are saved in a list  """
+		 the results are saved in a list 
+		 mutable  default  argument  results """
 		results.append(func(self))
 		for child in self.children:
 			child.travers_list_accum(func, results)
@@ -547,7 +548,7 @@ class Service():
 	def regen_map(node):
 		""" the function adds attributes to map.xml,
 			It can work at the site level and at the man level """
-		full_mapname = os.path.join(node.full_path(), self.host().mapname)
+		full_mapname = os.path.join(node.full_path(), node.host().mapname)
 		if not(Tools.check_exists_file(full_mapname)): return False
 		try:
 			tree = ET.parse(full_mapname)
@@ -780,12 +781,12 @@ class Service():
 		error_found = False
 		catsetpath =  set()
 		catsetnid =  set()
-		if (len(man.subnodes) == 0):
+		if (len(man.children) == 0):
 			error_found = True
 			message = "Пустой man - " + man.info()
 			Tools.output(message, outtype = "err")
 			
-		for cat in man.subnodes:
+		for cat in man.children:
 			if (cat.path not in catsetpath): 
 				catsetpath.add(cat.path)
 			else:
@@ -803,12 +804,12 @@ class Service():
 			pagesetpath =  set()
 			pagesetnid =  set()
 
-			if (len(cat.subnodes) == 0):
+			if (len(cat.children) == 0):
 				error_found = True
 				message = "Empty cat - " + cat.info()
 				Tools.output(message, outtype = "err")
 			
-			for page in cat.subnodes:
+			for page in cat.children:
 				if (page.path not in pagesetpath): 
 					pagesetpath.add(page.path)
 				else:
@@ -836,7 +837,7 @@ class Service():
 		(внутри каталогов (категорий, cat) не должно быть других каталогов 
 		*в папке справочника (manual) должны быть только папки каталогов из карты)"""
 		
-		if wProc.check_map(man):
+		if Service.check_map(man):
 			return
 		
 		errtempdirname = "errtemp"
@@ -850,7 +851,7 @@ class Service():
 			message = "В папке " + man.info() + " присутствуют файлы " + str(catsdir_content[2])
 			Tools.output(message, outtype = "err")
 			
-		catlistpath = list(map(lambda node: node.path, man.subnodes))
+		catlistpath = list(map(lambda node: node.path, man.children))
 		for catdir in catsdir_content[1]:
 			if (catdir not in catlistpath):
 				error_found = True
@@ -861,7 +862,7 @@ class Service():
 					Tools.output(message, outtype = "err")
 			
 		error_file_found = []
-		for cat in man.subnodes:
+		for cat in man.children:
 			# всем каталогам (cat) из карты должны соответствовать папки
 			if not(os.path.exists(cat.full_path())): 
 				error_found = True
@@ -869,7 +870,7 @@ class Service():
 				Tools.output(message, outtype = "err")
 			
 			# всем страницами (page) из карты должны соответствовать файлы 
-			for page in cat.subnodes:
+			for page in cat.children:
 				if not(os.path.exists(page.full_path())): 
 					error_found = True
 					message = "Не существует файла " + page.info()
@@ -884,7 +885,7 @@ class Service():
 				Tools.output(message, outtype = "err")
 			
 			# всем файлам  на диске должны соответствовать page в карте
-			pagelistpath = list(map(lambda node: node.path + ".php", cat.subnodes)) 
+			pagelistpath = list(map(lambda node: node.path + ".php", cat.children)) 
 			for page in pagesdir_content[2]:
 				if (page not in pagelistpath):
 					error_found = True

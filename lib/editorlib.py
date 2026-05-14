@@ -21,13 +21,7 @@ class EditLib(object):
 		txt = txt.replace("&", "&amp;")
 		txt = txt.replace("<", "&lt;")
 		txt = txt.replace(">", "&gt;")
-		return txt
-
-	def	replace_entity(txt):
-		txt = txt.replace("&", "&amp;")
-		txt = txt.replace("<", "&lt;")
-		txt = txt.replace(">", "&gt;")
-		return txt
+		return txt  
 		
 	def	wrap(txt, tag = ''):
 		if tag == 'b':
