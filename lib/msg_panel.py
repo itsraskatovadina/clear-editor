@@ -24,9 +24,10 @@ class MsgPanel(QTabWidget):
 	def __init__(self, parent=None):
 		super(MsgPanel, self).__init__(parent)
 		
-		self.msg_box = MsgBox(self)
-		self.err_box = ErrBox(self)
-		self.view_box = ViewBox(self)
+		self.err_box = QTextEdit(self)
+		self.err_box.setReadOnly(True)
+		self.msg_box = QTextEdit(self)
+		self.view_box = QTextEdit(self)
 		
 		self.addTab(self.err_box, "Err")
 		self.addTab(self.msg_box, "Msg")
@@ -34,4 +35,17 @@ class MsgPanel(QTabWidget):
 		self.setTabPosition(QTabWidget.West)
 		self.setUsesScrollButtons(True)
 		self.setCurrentIndex(0) 
- 
+		self.app = QApplication.instance() if (QApplication.instance() is not None) else QApplication(sys.argv)
+		
+	def new_message(self, msg, msgtype=None):
+		self.msg_box.append(f"<span style='color: blue;'>{msg}</span>")
+		#self.setCurrentIndex(1) 
+		self.setCurrentWidget(self.msg_box)
+		self.app.beep()
+		
+	def new_error(self, msg):
+		#self.err_box.append(f"<span style='color: red;'>{msg.strip()}</span>")
+		self.err_box.insertHtml(f"<span style='color: red;'>{msg}</span>")
+		#self.setCurrentIndex(0) 
+		self.setCurrentWidget(self.err_box)
+		self.app.beep()

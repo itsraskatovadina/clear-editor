@@ -138,14 +138,18 @@ class TabPanel(QTabWidget):
 			self.new_status_msg.emit(f"Saved as {path_name}")
 			return True
 			
-	def reload_tab(self, editor):
+	def reload_tab(self):
 		current_editor = self.get_current_editor()
 		if current_editor is None:
 			return
 		path = current_editor.path
 		if not self.check_path_exists(path):
 			return
-		if editor.load_from_file():
+		cursor = current_editor.editor.textCursor()
+		position = cursor.position()
+		if current_editor.load_from_file():
+			cursor.setPosition(position)
+			current_editor.editor.setTextCursor(cursor)
 			current_index = self.currentIndex()
 			path_name, full_path_name, mod_label = self.set_tab_text_and_tooltip(current_index)
 			self.tab_status_changed.emit()
@@ -162,7 +166,7 @@ class TabPanel(QTabWidget):
 			reply = QMessageBox.question(
 				self, 'Unsaved Changes',
 				f'"{path_name}" has unsaved changes. Do you want to save before closing?',
-				QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+				QMessageBox.Save | QMessageBox.Ignore | QMessageBox.Cancel)
 			if reply == QMessageBox.Cancel:
 				return False
 			elif reply == QMessageBox.Save:
@@ -171,7 +175,10 @@ class TabPanel(QTabWidget):
 					return True
 				else:
 					return False
-		'''if the text has not changed or Discard is pressed '''
+			else:
+				# Ignore
+				pass
+		'''if the text has not changed or Ignore is pressed '''
 		self.removeTab(index)
 		self.tab_status_changed.emit()
 		return True
@@ -232,11 +239,20 @@ class TabPanel(QTabWidget):
 			return False
 		full_path = editor.get_full_path()
 		if editor.is_externally_modified():
-			QMessageBox.warning(self, "file on the disk has been changed",
-				f"The file {full_path} on the disk is newer than in the editor", 
-				buttons=QMessageBox.Close, defaultButton=QMessageBox.Close)
-			editor.last_file_mtime = datetime.datetime.now()
-		
+			msg_box = QMessageBox(self)
+			msg_box.setWindowTitle("External modification")
+			msg_box.setText("The file on the disk is newer than in the editor. Select the required action:")
+			reload_button = msg_box.addButton("Reload", QMessageBox.ActionRole)
+			msg_box.setStandardButtons(QMessageBox.Save | QMessageBox.Ignore)
+			msg_box.exec_()
+			clicked = msg_box.clickedButton()
+			if clicked == msg_box.button(QMessageBox.Save):
+				return self.save_tab()
+			elif clicked == msg_box.button(QMessageBox.Ignore):
+				editor.last_file_mtime = datetime.datetime.now()
+				return
+			elif clicked == reload_button:
+				return self.reload_tab()
 		
 class MainWin(QMainWindow):
 	''' for debugging on run as main '''

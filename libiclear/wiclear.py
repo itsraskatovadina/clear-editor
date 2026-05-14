@@ -1,9 +1,9 @@
 #! /usr/bin/python3
 
 from PyQt5.QtWidgets import (QApplication, QWidget, QTabWidget, QDialog, QMessageBox,
-	QPushButton, QTextEdit, QLabel, QLineEdit, QComboBox, QVBoxLayout, QHBoxLayout,
-	QInputDialog, QDialogButtonBox, QMenu, QAction, QFrame, QStyle)
-from PyQt5.QtCore import QCoreApplication, QSettings, QSize, QPoint, Qt
+	QPushButton, QTextEdit, QLabel, QLineEdit, QComboBox, QCheckBox, QVBoxLayout, QHBoxLayout,
+	QInputDialog, QFileDialog, QDialogButtonBox, QMenu, QAction, QFrame, QStyle)
+from PyQt5.QtCore import QCoreApplication, QSettings, QSize, QPoint, Qt, QDir
 from PyQt5.QtGui import QFont, QIcon
 from pathlib import Path
 import os
@@ -27,31 +27,30 @@ class WinNode(QWidget):
 		self.lst.currentIndexChanged["int"].connect(self.on_changed_list)
 			
 	def fill_list(self):
-		""" заполняем или перезаполняем список выбора """
+		""" filling in or re-filling the selection list """
 		self.lst.clear()
 
 		level = self.txt.text()
 		prev_level = iclib.Iclear.prev_level(level)
-		#prev_level_node = getattr(self.parent.nodefilter, prev_level)
 		prev_level_node = self.parent.nodnav.get_node(prev_level)
-		#print(level, prev_level_node)
-		""" если nodefilter.node на предидущем уровне заполнен
-		 (для site (top) предидущий уровень host (site) и он всегда заполнен ???)  
-			тогда формируем список для выбора + пустое значение """
+		""" if nodnav.node is full at the previous level
+		 (there is a pre-existing host level for the site and it is always full)  
+			then we form a selection list + an empty value. """
 		if prev_level_node:
 			self.lst.addItem("")
 			self.lst.setCurrentIndex(0)
 			for child in prev_level_node.children:
 				self.lst.addItem(child.nid)
-			""" если nodefilter.node на соответствующем уровне заполнен   
-			тогда устанавливаем его значение в списке"""
-			if self.parent.nodnav.get_node(level):
-				self.lst.setCurrentText(str(self.parent.nodnav.get_node(level)))
+			""" if nodnav.node is filled at the appropriate level   
+			then we set its value in the list.  """
+			level_node = self.parent.nodnav.get_node(level)
+			if level_node:
+				self.lst.setCurrentText(str(level_node))
 		
 	def on_changed_list(self, index):
-		"""  при изменении текущего индекса списка
-			1 - изменяем self.parent.nodefilter.set_node(level) 
-			2 - изменяем список выбора на следующем уровне (если он есть)"""
+		"""  when changing the current index of the list
+			1 - change self.parent.nodnav.set_node(level) 
+			2 - change the selection list at the next level (if any)"""
 		level = self.txt.text()
 		prev_level = iclib.Iclear.prev_level(level)
 		next_level = iclib.Iclear.next_level(level)
@@ -68,54 +67,16 @@ class WinNode(QWidget):
 			win_next_level = getattr(self.parent, "w" + next_level)
 			win_next_level.fill_list()
 
-class IclearInputDialog(QDialog):
-	
-	def __init__(self, parent=None, hostpath = '', sitepath = ''):
-		super(IclearInputDialog, self).__init__(parent)
-		
-		self.setWindowTitle("Iclear settings")
-		self.setModal(True)
-		#self.resize(QSize(500, 270))
-		self.label1 = QLabel("apache sites dir")
-		self.line_edit1 = QLineEdit(hostpath)
-		self.label2 = QLabel("additional path")
-		self.line_edit2 = QLineEdit(sitepath)
-		self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-		layout = QVBoxLayout(self)
-
-		layout.addWidget(self.label1)
-		layout.addWidget(self.line_edit1)
-
-		layout.addWidget(self.label2)
-		layout.addWidget(self.line_edit2)
-
-		layout.addWidget(self.button_box)
-		
-		self.button_box.accepted.connect(self.accept)
-		self.button_box.rejected.connect(self.reject)
-		
-	def get_values(self):
-		"""Возвращает кортеж из двух строковых значений"""
-		return (self.line_edit1.text(), self.line_edit2.text())
-
-class WinNodesNav(QFrame):
-	"""  виджет для отображения и выбора экземпляра класса NodeNav 
-		состав - одно невидимое поле host и видимые поля(site, top, man, cat, page),
-		 каждое из которых подчинено предидущему
-		доп функция - перезаполнение по кнопке ↺ и ввод по ссылке кнопка ... """
+class WinNodesNav(QWidget):
+	"""  widget for displaying and selecting an instance of the NodeNav class 
+		composition - one invisible host field and related fields(site, top, man, cat, page) """
 	
 	def __init__(self, nodnav, parent=None):
-		QFrame.__init__(self, parent)
+		QWidget.__init__(self, parent)
 		
 		self.parent = parent
 		self.nodnav = nodnav
-
-		self.setFrameStyle(QFrame.Box | QFrame.Plain)
-		self.setObjectName('navself')
-		self.setStyleSheet("QFrame#navself {border: 1px solid #C0C0C0;}")
-		 
-		self.txt_nodnav	= QLabel(str(self.nodnav))
-		#self.txt_nodnav.setFrameStyle(QFrame.NoFrame)
+		#self.txt_nodnav	= QLabel(str(self.nodnav))
 		
 		hboxLay = QHBoxLayout()
 		hboxLay.setContentsMargins(0,0,0,0)
@@ -130,71 +91,18 @@ class WinNodesNav(QFrame):
 		self.wpage = WinNode(parent = self, level = "page")
 		hboxLay.addWidget(self.wpage)		
 		
-		self.btnURL = QPushButton(parent=self)
-		self.btnURL.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
-		self.btnURL.setFixedWidth(32)
-		self.btnURL.setToolTip("URL")
-		self.btnURL.clicked.connect(self.fill_from_url)
-		hboxLay.addWidget(self.btnURL)
-		
-		self.btnMenu = QPushButton("...")
-		self.btnMenu.setStyleSheet("QPushButton::menu-indicator { image: url(noimg) }")
-		self.btnMenu.setFixedWidth(36)
-		menu = QMenu('menu')
-		
-		xdgOpenAction = QAction('xdg_open', self)
-		xdgOpenAction.triggered.connect(self.xdg_open)
-		menu.addAction(xdgOpenAction)
-		
-		refilAction = QAction('refilling', self)
-		refilAction.triggered.connect(self.refill)
-		menu.addAction(refilAction)
-		
-		genIndexAction = QAction('gen_index_and_phpinc', self)
-		#genIndexAction.triggered.connect(self.refill)
-		menu.addAction(genIndexAction)
-		
-		genPlugAction = QAction('gen_plug_pagephp', self)
-		#genPlugAction.triggered.connect(self.refill)
-		menu.addAction(genPlugAction)
-		
-		checkMapAction = QAction('check_map', self)
-		#checkMapAction.triggered.connect(self.refill)
-		menu.addAction(checkMapAction)
-		
-		genViewAction = QAction('gen_view', self)
-		#genViewAction.triggered.connect(self.refill)
-		menu.addAction(genViewAction)
-
-		
-		self.btnMenu.setMenu(menu)
-		hboxLay.addWidget(self.btnMenu)
-
-		'''
-		self.btnOpen = QPushButton(parent=self)  
-		self.btnOpen.setToolTip("Open")
-		self.btnOpen.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
-		self.btnOpen.clicked.connect(self.open_page)
-		hboxLay.addWidget(self.btnOpen)
-		'''
-		hboxLay.addStretch()
+		#hboxLay.addStretch()
 		self.setLayout(hboxLay)
-
-		#self.setFrameStyle(QFrame.Box)
 		
 	def render_txt_nodnav(self):
 		self.txt_nodnav.setText(str(self.nodnav))
 		
 	def set_nodnav(self, level, node):
 		self.nodnav.set_node(level, node)
-		self.render_txt_nodnav()
+		#self.render_txt_nodnav()
 
-	def open_page(self):	
-		path = self.nodnav.page.full_path()
-		self.parent.tab_panel.add_tab(Path(path))
-		#print(path)
-		
 	def refill(self):
+
 		#self.render_txt_nodnav()
 		self.wsite.lst.blockSignals(True)
 		self.wtop.lst.blockSignals(True)
@@ -214,51 +122,203 @@ class WinNodesNav(QFrame):
 		self.wcat.lst.blockSignals(False)
 		self.wpage.lst.blockSignals(False)
 		
-	def fill_from_map(self):
-		""" перезаполняем nodnav (когда меняется map) """
-		""" сохраняем nodnav в виде словаря """
-		nodedict = self.nodnav.get_dict()
-		self.nodnav.host.refill(fill_sites = True, fill_mans = True)
-		self.nodnav.set_dict(nodedict)
-		self.refill()
+
+class IclearWidget(QWidget):
+	
+	def __init__(self, nodnav, parent = None):
+		QWidget.__init__(self, parent)
 		
+		self.parent = parent
+		self.winnodnav = WinNodesNav(nodnav = nodnav, parent=self)
+		
+		hboxLay = QHBoxLayout()
+		hboxLay.setContentsMargins(0,0,0,0)
+		hboxLay.addWidget(self.winnodnav)
+
+		self.btnURL = QPushButton(parent=self)
+		self.btnURL.setIcon(QIcon('icons/icon-hyperlink.jpg'))
+		self.btnURL.setFixedWidth(32)
+		self.btnURL.setToolTip("URL")
+		self.btnURL.clicked.connect(self.fill_from_url)
+		hboxLay.addWidget(self.btnURL)
+
+		self.btnOpen = QPushButton(parent=self)
+		self.btnOpen.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+		self.btnOpen.setFixedWidth(32)
+		self.btnOpen.setToolTip("Open")
+		self.btnOpen.clicked.connect(self.open_page)
+		hboxLay.addWidget(self.btnOpen)
+		
+		self.btnMenu = QPushButton("...")
+		self.btnMenu.setStyleSheet("QPushButton::menu-indicator { image: url(noimg) }")
+		self.btnMenu.setFixedWidth(36)
+		menu = QMenu('menu')
+		
+		xdgOpenAction = QAction('xdg_open', self)
+		xdgOpenAction.triggered.connect(self.xdg_open)
+		menu.addAction(xdgOpenAction)
+		
+		refilAction = QAction('refill host', self)
+		refilAction.triggered.connect(self.refill_host)
+		menu.addAction(refilAction)
+		
+		genIndexAction = QAction('gen_index_and_phpinc', self)
+		genIndexAction.triggered.connect(self.gen_index_phpinc)
+		menu.addAction(genIndexAction)
+		
+		genPlugAction = QAction('gen_plug_pagephp', self)
+		genPlugAction.triggered.connect(self.gen_plug_pagephp)
+		menu.addAction(genPlugAction)
+		
+		contListAction = QAction('gen_content_list', self)
+		contListAction.triggered.connect(self.gen_content_list)
+		menu.addAction(contListAction)
+		
+		checkMapAction = QAction('check_map', self)
+		checkMapAction.triggered.connect(self.check_map)
+		menu.addAction(checkMapAction)
+		
+		genViewAction = QAction('gen_view', self)
+		genViewAction.triggered.connect(self.gen_view)
+		menu.addAction(genViewAction)
+		
+		self.btnMenu.setMenu(menu)
+		hboxLay.addWidget(self.btnMenu)
+
+		self.setLayout(hboxLay)
+
 	def fill_from_url(self):
-		""" перезаполняем nodefilter с адресной строки страницы """
+		""" re-filling nodnav from the address bar of the page """
 		inputDialog = QInputDialog(self)
 		inputDialog.resize(QSize(700, 270))
 		inputDialog.setWindowTitle("url")
-		inputDialog.setLabelText("Введите адрес страницы")
-		inputDialog.setTextValue(self.nodnav.get_url())
+		inputDialog.setLabelText("Enter the page url")
+
+		inputDialog.setTextValue(self.winnodnav.nodnav.get_url())
 		inputDialog.setInputMode(0)
 		ok = inputDialog.exec_()
-		pagelink = inputDialog.textValue()
-		"""
-		pagelink, ok = inputDialog.getText(self, "url",
-		"Введите url адрес страницы", text=self.nodefilter.gen_link())"""
+		pageurl = inputDialog.textValue()
 		
 		if ok:
-			self.nodnav.set_from_url(pagelink)
-			self.refill()
-			
+			self.winnodnav.nodnav.set_from_url(pageurl)
+			self.winnodnav.refill()
+					
+	def open_page(self):	
+		if self.winnodnav.nodnav.page:
+			page_path = self.winnodnav.nodnav.page.full_path()
+			if iclib.Tools.check_exists_file(page_path):
+				self.parent.tab_panel.add_tab(Path(page_path))
+				return True
+		return False
+		
+	def refill_host(self):
+		"""refilling nodnav (when the map changes)  
+		  saving nodnav as a dictionary"""
+		nodedict = self.winnodnav.nodnav.get_dict()
+		self.winnodnav.nodnav.host.refill(fill_sites = True, fill_mans = True)
+		self.winnodnav.nodnav.set_dict(nodedict)
+		self.winnodnav.refill()
+
 	def xdg_open(self, page_path):
-		if 	self.nodnav.page: 
-			full_path = self.nodnav.page.full_path()
+		if 	self.winnodnav.nodnav.page: 
+			full_path = self.winnodnav.nodnav.page.full_path()
 			os.system("xdg-open "+full_path)
-		elif self.nodnav.cat: 
-			full_path = self.nodnav.cat.full_path()
+		elif self.winnodnav.nodnav.cat: 
+			full_path = self.winnodnav.nodnav.cat.full_path()
 			os.system("xdg-open "+full_path)
-		elif self.nodnav.man: 
-			full_path = self.nodnav.man.full_path()
+		elif self.winnodnav.nodnav.man: 
+			full_path = self.winnodnav.nodnav.man.full_path()
 			os.system("xdg-open "+full_path)
-		else: 
-			full_path = self.nodnav.site.full_path()
+		elif self.winnodnav.nodnav.site:  
+			full_path = self.winnodnav.nodnav.site.full_path()
 			os.system("xdg-open "+full_path)
 			
 	def fill_from_page_path(self, page_path):
-		self.nodnav.set_from_page_path(page_path)
-		self.refill()
+		self.winnodnav.nodnav.set_from_page_path(page_path)
+		self.winnodnav.refill()
 		
+	def gen_plug_pagephp(self):	
+		if 	self.winnodnav.nodnav.page: 
+			iclib.Service.gen_plug_pagephp(self.winnodnav.nodnav.page)
+					
+	def gen_index_phpinc(self):	
+		if 	self.winnodnav.nodnav.man:
+			iclib.Service.gen_index_phpinc(self.winnodnav.nodnav.man)
+		elif self.winnodnav.nodnav.site:
+			iclib.Service.gen_root_indexphp(self.winnodnav.nodnav.site)
+		
+	def check_map(self):	
+		if 	self.winnodnav.nodnav.man:
+			iclib.Service.diff_map_by_dir(self.winnodnav.nodnav.man)
+
+	def gen_view(self):	
+		pass
+
+	def gen_content_list(self):	
+		pass
+		
+class IclearSettingDialog(QDialog):
 	
+	def __init__(self, state, parent=None, hostpath = '', sitepath = ''):
+		super(IclearSettingDialog, self).__init__(parent)
+		
+		self.setWindowTitle("Iclear settings")
+		self.setModal(True)
+		
+		self.state = QCheckBox("Iclear support is enabled")
+		self.state.setChecked(state)
+		self.hostpath_label = QLabel("apache sites dir")
+		self.hostpath_value = QLineEdit(hostpath)
+		
+		self.btnOpenHost = QPushButton(parent=self)
+		self.btnOpenHost.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton)) 
+		self.btnOpenHost.clicked.connect(self.on_open_host)
+		
+		self.sitepath_label = QLabel("additional path")
+		self.sitepath_value = QLineEdit(sitepath)
+		
+		self.btnOpenSite = QPushButton(parent=self)
+		self.btnOpenSite.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton)) 
+		self.btnOpenSite.clicked.connect(self.on_open_site)
+		
+		self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+		
+		mainlayout = QVBoxLayout(self)
+		mainlayout.addWidget(self.state)
+		hbox_host = QHBoxLayout()
+		hbox_host.addWidget(self.hostpath_label)
+		hbox_host.addWidget(self.hostpath_value)
+		hbox_host.addWidget(self.btnOpenHost)
+		mainlayout.addLayout(hbox_host)
+		hbox_site = QHBoxLayout()
+		hbox_site.addWidget(self.sitepath_label)
+		hbox_site.addWidget(self.sitepath_value)
+		hbox_site.addWidget(self.btnOpenSite)
+		mainlayout.addLayout(hbox_site)
+		
+		mainlayout.addWidget(self.button_box)
+		
+		self.button_box.accepted.connect(self.accept)
+		self.button_box.rejected.connect(self.reject)
+		
+	def on_open_host(self):
+		hostdir = QFileDialog.getExistingDirectory(parent=self, caption="Select host path")
+		if hostdir == '':
+			return
+		self.hostpath_value.setText(hostdir)
+		
+	def on_open_site(self):
+		hostpath = self.hostpath_value.text()
+		sitedir = QFileDialog.getExistingDirectory(parent=self, caption="Select site path", 
+			directory=hostpath)
+		if sitedir == '':
+			return
+		self.sitepath_value.setText(sitedir[len(hostpath)+1:])
+		
+	def get_values(self):
+		return (self.state.isChecked(), self.hostpath_value.text(), self.sitepath_value.text())
+
+
 class WMain(QWidget):
 	def __init__(self, parent = None):
 		QWidget.__init__(self, parent)
@@ -279,10 +339,7 @@ if __name__ == "__main__":
 	import iclear as iclib
 	
 	app = QApplication(sys.argv)
-		
 	window = WMain()							 
-	window.resize(400, 100)
-	window.setFont(QFont('SansSerif', 14))
 	window.show()										 
 	sys.exit(app.exec_()) 		
 
