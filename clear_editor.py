@@ -1,8 +1,9 @@
 #! /usr/bin/python3
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5.QtWidgets import (QMainWindow, QTextEdit, QSplitter, QStatusBar,
+                             QLabel, QAction, QApplication, QDialog)
+from PyQt5.QtCore import (Qt, QPoint, QSize, QSettings, pyqtSignal)
+from PyQt5.QtGui import (QFont, QIcon, QKeySequence)
 
 from pathlib import Path
 import sys
@@ -12,15 +13,16 @@ import importlib.util
 from lib.file_tab_panel import *
 from lib.msg_panel import *
 					
-class MultiEditor(QMainWindow):
+class ClearEditor(QMainWindow):
 	
 	new_message = pyqtSignal(str, str)
 	new_error = pyqtSignal(str)
 
-	def __init__(self, parent = None):
+	def __init__(self, parent = None, editor_class=QTextEdit):
 		QMainWindow.__init__(self, parent)	 
-		
-		self.win_title = "MultiEditor"
+
+		self.editor_class = editor_class
+		self.win_title = "ClearEditor"
 		self.restoreSettings()
 
 		self.setWindowTitle(self.win_title)
@@ -28,7 +30,7 @@ class MultiEditor(QMainWindow):
 		self.move(self.settings.value("geometry/pos", QPoint(100, 100)))
 		self.resize(self.settings.value("geometry/size", QSize(1200, 800)))
 		
-		self.tab_panel = TabPanel(parent=self, editor=HTMLEditor)
+		self.tab_panel = TabPanel(parent=self, editor_class=editor_class) 
 		self.msg_panel = MsgPanel(parent=self)
 		
 		self.splitter = QSplitter(Qt.Vertical)
@@ -37,138 +39,86 @@ class MultiEditor(QMainWindow):
 		self.splitter.setSizes([500,100])
 		self.setCentralWidget(self.splitter)
 
-		self.create_menu_bar()
-		self.create_status_bar()
-		
-		self.set_tab_panel()
-		
-		self.tab_panel.tab_status_changed.connect(self.on_editor_tab_status_changed)
-		self.tab_panel.new_status_msg.connect(self.set_status_bar_msg)
-		self.tab_panel.file_opened_or_saved_as.connect(self.add_recent_file)
-		self.tab_panel.editor_cursor_position_changed.connect(self.set_permanent_status_msg)
+		# обработка сообщений и ошибок
+		# signal parameters - message text, message_type = 'debug'/'info'/'warning'/'error'
 		self.new_message.connect(self.msg_panel.new_message)
 		self.new_error.connect(self.msg_panel.new_error)
 		
+		self.create_menu_bar()
+		self.create_status_bar()
 		self.create_toolbar()
-		self.on_editor_tab_status_changed()
 		
-	def on_error(self, msg):
-		self.new_error.emit(msg)
+		self.tab_panel.editor_state_changed.connect(self.on_editor_state_changed)
+		self.tab_panel.editor_cursor_position_changed.connect(self.set_permanent_status_msg)
+		self.tab_panel.new_message.connect(self.on_message)
 		
-	def on_message(self, msg, msgtype=None):
-		if msgtype:
-			self.new_message.emit(msg, msgtype)
+		self.extensions = []
+		self.load_extensions()
+		
+		self.set_tab_panel()
+
+		app.focusChanged.connect(self.tab_panel.on_app_focus_changed)
+		
+	def load_extensions(self):
+		# для установки clear nav
+		# self.ic_create_iclear_tool()
+		
+		self.create_action(self.extensions_menu, "Toggle Iclear module", self.toggle_iclear_extension)
+		iclear_support = self.settings.value("extensions/iclear", 0)
+		if iclear_support == '1': 
+			from extensions.iclear.iclear_extension import IClearExtension
+			iclear = IClearExtension()
+			
+			widget = iclear.create_widget()
+			self.iclear_toolbar = self.addToolBar('iclear')
+			self.iclear_toolbar.addWidget(self.iclear_widget)
+			'''
+			self.tab_panel.currentChanged.connect(
+				lambda: self.iclear_widget.fill_from_page_path(self.tab_panel.get_current_path()))
+			'''
+			self.extensions.append(iclear)
+			
+	def toggle_iclear_extension(self):
+		
+		iclear = None
+		for extension in self.extensions:
+			if extension.get_name() == 'IClear':
+				iclear = extension
+				
+		from extensions.iclear.wiclear import IclearSettingDialog
+		if iclear is not None:
+			dialog = IclearSettingDialog(True, parent = self)
 		else:
-			self.new_message.emit(msg, '')
+			from extensions.iclear.iclear_extension import IClearExtension
+			dialog = IclearSettingDialog(False, parent = self)
 		
-	def set_tab_panel(self):
-		open_files = []
-		open_files_size = self.settings.beginReadArray("open_files")
-		for i in range(open_files_size):
-			self.settings.setArrayIndex(i)
-			open_files.append(self.settings.value("f"))
-		self.settings.endArray()
+		if dialog.exec_() == QDialog.Accepted:
+			state, hostpath, sitepath = dialog.get_values()
+		if state:
+			self.settings.setValue("extensions/iclear", '1')
+		else:
+			self.settings.setValue("extensions/iclear", '0')
+		self.settings.sync()
+		'''
+	def toggle_extension(self, extension):
+		for dock in self.findChildren(QDockWidget):
+			if dock.windowTitle() == extension.get_name():
+				dock.setVisible(not dock.isVisible())
+				break
+
+	def ic_create_iclear_tool(self):
 		
-		if len(open_files)>0:
-			for file_path in open_files:
-				self.tab_panel.add_tab(Path(file_path)) 
-		if (self.tab_panel.count()==0):
-			self.tab_panel.new_tab()
+		iclear_support = self.settings.value("iclear/support", 0)
+		self.iclear_support = True if iclear_support == '1' else False
+		
+		if not self.iclear_support:
+			return
 			
-	def create_action(self, menu, name, connection,
-			icon=None, shortcut=None, statustip=None, tooltip=None, data=None):
-		action = menu.addAction(name)
-		action.triggered.connect(connection)
-		if icon: action.setIcon(QIcon(icon))
-		if shortcut: action.setShortcut(shortcut)
-		if statustip: action.setStatusTip(statustip)
-		if tooltip: action.setToolTip(tooltip)
-		if data: action.setData(data)
-		return action
-		
-	def create_menu_from_list(self, menu, action_list):
-		for action in action_list:
-			data=action['action']
-			if data == 'menu':
-				submenu = menu.addMenu(action['name'])
-				self.create_menu_from_list(submenu, action['action_list'])
-			elif data == 'separator':
-				menu.addSeparator()
-			else:
-				self.create_action(menu, action['name'], self.ext_action, data=action['action'],
-					icon=action.get('icon'), shortcut=action.get('shortcut'), 
-						statustip=action.get('statustip'), tooltip=action.get('tooltip'))
-			
-	def create_menu_bar(self):
-		
-		menu_bar = self.menuBar()
-		
-		# File Menu
-		file_menu = menu_bar.addMenu("File")
-
-		self.create_action(file_menu, "New", self.tab_panel.new_tab, shortcut="Ctrl+N")
-		self.create_action(file_menu, "Open", self.tab_panel.open_file, shortcut="Ctrl+O", statustip="Open File")
-		self.create_action(file_menu, "Save", self.tab_panel.save_tab, shortcut="Ctrl+S")
-		self.create_action(file_menu, "Save As", self.tab_panel.save_as_tab, shortcut="Ctrl+Shift+S")
-		self.create_action(file_menu, "Reload", self.tab_panel.reload_tab, shortcut="Ctrl+Shift+R")
-		
-		file_menu.addSeparator()
-		self.create_action(file_menu, "Property", self.tab_panel.property_tab)
-		file_menu.addSeparator()
-		
-		self.recent_files_menu = file_menu.addMenu("Recent files")
-		self.create_recent_files_menu()
-
-		file_menu.addSeparator()
-		
-		self.create_action(file_menu, "Exit", self.close, shortcut="Ctrl+Q")
-
-		# optional Text Menu 
-		if hasattr(self.tab_panel.editor_class, 'text_actions'):
-			text_menu = menu_bar.addMenu('Text')
-			self.create_menu_from_list(text_menu, self.tab_panel.editor_class.text_actions)
-			#for action in self.tab_panel.editor_class.text_actions:
-			#	create_action(text_menu, action['name'], self.ext_action, data=action['action'])
-
-		# optional HTML Menu 
-		if hasattr(self.tab_panel.editor_class, 'html_actions'):
-			html_menu = menu_bar.addMenu('HTML')
-			self.create_menu_from_list(html_menu, self.tab_panel.editor_class.html_actions)
-			#for action in self.tab_panel.editor_class.html_actions:
-			#	create_action(html_menu, action['name'], self.ext_action, data=action['action'])
-				
-				
-		# Tool menu
-		tool_menu = menu_bar.addMenu('Tool')
-		
-		self.create_action(tool_menu, "Zoom In", self.zoom_in, shortcut=QKeySequence.ZoomIn)
-		self.create_action(tool_menu, "Zoom Out", self.zoom_out, shortcut=QKeySequence.ZoomOut)
-		tool_menu.addSeparator()
-		self.create_action(tool_menu, "Turn Iclear support", self.turn_iclear_support)
-
-	def ext_action(self):
-		action = self.sender()
-		method_name = action.data()
-		getattr(self.tab_panel.get_current_editor().editor, method_name)()
-				
-	def create_toolbar(self):
-		if hasattr(self.tab_panel.editor_class, 'html_tools'):
-			toolbarHTML = self.addToolBar('HTML')
-			self.create_menu_from_list(toolbarHTML, self.tab_panel.editor_class.html_tools)
-			'''
-			for action in self.tab_panel.editor_class.html_tools:
-				self.create_action(toolbarHTML, action['name'], self.ext_action, data=action['action'],
-					icon=action.get('icon'))
-			'''
-
-		if self.iclear_support:
-			self.create_iclear_tool()
-
-	def create_iclear_tool(self):
 		if 'iclear' not in sys.modules:
 			import libiclear.iclear as iclear
 			import libiclear.wiclear as wiclear
 			iclear.Tools.set_output(stdout= False, outhandler = self.on_message)
+			
 		self.iclear_hostpath = self.settings.value("iclear/hostpath", '') or ''
 		self.iclear_sitepath = self.settings.value("iclear/sitepath", '') or ''
 		
@@ -178,8 +128,12 @@ class MultiEditor(QMainWindow):
 		self.iclear_widget = wiclear.IclearWidget(nodnav, parent=self)
 		self.iclear_tool_bar = self.addToolBar('iclear')
 		self.iclear_tool_bar.addWidget(self.iclear_widget)
+		
+		self.tab_panel.currentChanged.connect(
+			lambda: self.iclear_widget.fill_from_page_path(self.tab_panel.get_current_path()))
 			
-	def turn_iclear_support(self):
+	def ic_turn_iclear_support(self):
+		
 		if 'iclear' not in sys.modules:
 			import libiclear.iclear as iclear
 			import libiclear.wiclear as wiclear
@@ -206,7 +160,7 @@ class MultiEditor(QMainWindow):
 						self.settings.setValue("iclear/hostpath", self.iclear_hostpath)
 						self.settings.setValue("iclear/sitepath", self.iclear_sitepath)
 						if not hasattr(self, 'iclear_tool_bar'):
-							self.create_iclear_tool()
+							self.ic_create_iclear_tool()
 						else:
 							self.iclear_tool_bar.setVisible(True)
 					else:
@@ -217,6 +171,127 @@ class MultiEditor(QMainWindow):
 				self.iclear_support = False
 				if hasattr(self, 'iclear_tool_bar'):
 					self.iclear_tool_bar.setVisible(False)
+					
+		if self.iclear_support:
+			self.settings.setValue("iclear/support", '1')
+			self.settings.setValue("iclear/hostpath", self.iclear_hostpath)
+			self.settings.setValue("iclear/sitepath", self.iclear_sitepath)
+		else:
+			self.settings.setValue("iclear/support", '0')
+		
+		self.settings.sync()
+		
+		'''
+		
+		
+	def on_error(self, msg):
+		self.new_error.emit(msg)
+		
+	def on_message(self, msg, msgtype=None):
+		if msgtype:
+			self.new_message.emit(msg, msgtype)
+		else:
+			self.new_message.emit(msg, '')
+		
+	def set_tab_panel(self):
+		open_files = []
+		open_files_size = self.settings.beginReadArray("open_files")
+		for i in range(open_files_size):
+			self.settings.setArrayIndex(i)
+			open_files.append(self.settings.value("f"))
+		self.settings.endArray()
+		
+		if len(open_files)>0:
+			for file_path in open_files:
+				self.tab_panel.add_tab(Path(file_path)) 
+		if (self.tab_panel.count()==0):
+			self.tab_panel.new_tab()
+					
+	def optional_action(self):
+		action = self.sender()
+		method_name = action.data()
+		getattr(self.tab_panel.get_current_editor().editor, method_name)()
+		
+	def create_action(self, menu, name, connection,
+			icon=None, shortcut=None, statustip=None, tooltip=None, data=None):
+		action = menu.addAction(name)
+		action.triggered.connect(connection)
+		if icon: action.setIcon(QIcon(icon))
+		if shortcut: action.setShortcut(shortcut)
+		if statustip: action.setStatusTip(statustip)
+		if tooltip: action.setToolTip(tooltip)
+		if data: action.setData(data)
+		return action
+		
+	def create_menu_from_list(self, menu, action_list):
+		for action in action_list:
+			data=action['action']
+			if data == 'menu':
+				submenu = menu.addMenu(action['name'])
+				if action.get('content') is not None:
+					self.create_menu_from_list(submenu, action['content'])
+			elif data == 'separator':
+				menu.addSeparator()
+			else:
+				self.create_action(menu, action['name'], self.optional_action, data=action['action'],
+					icon=action.get('icon'), shortcut=action.get('shortcut'), 
+						statustip=action.get('statustip'), tooltip=action.get('tooltip'))
+			
+	def create_menu_bar(self):
+		
+		menu_bar = self.menuBar()
+		
+		# File Menu
+		file_menu = menu_bar.addMenu("File")
+
+		self.create_action(file_menu, "New", self.tab_panel.new_tab, shortcut="Ctrl+N")
+		self.create_action(file_menu, "Open", self.tab_panel.open_file, shortcut="Ctrl+O", statustip="Open File")
+		self.create_action(file_menu, "Save", self.tab_panel.current_tab_save, shortcut="Ctrl+S")
+		self.create_action(file_menu, "Save As", self.tab_panel.current_tab_save_as, shortcut="Ctrl+Shift+S")
+		self.create_action(file_menu, "Reload", self.tab_panel.current_tab_reload, shortcut="Ctrl+Shift+R")
+		
+		file_menu.addSeparator()
+		self.create_action(file_menu, "Property", self.tab_panel.current_tab_view_property)
+		file_menu.addSeparator()
+ 
+		self.recent_files_menu = file_menu.addMenu("Recent files")
+		self.create_recent_files_menu()
+
+		file_menu.addSeparator()
+		
+		self.create_action(file_menu, "Exit", self.close, shortcut="Ctrl+Q")
+
+		# optional Menu 
+		if hasattr(self.editor_class, 'class_actions'):
+			for i in self.editor_class.class_actions:
+				if i['action'] == 'menu':
+					menu = menu_bar.addMenu(i['name'])
+					self.create_menu_from_list(menu, i['content'])
+				
+		# Tool menu
+		tool_menu = menu_bar.addMenu('Tool')
+		
+		self.create_action(tool_menu, "Zoom In", self.zoom_in, shortcut=QKeySequence.ZoomIn)
+		self.create_action(tool_menu, "Zoom Out", self.zoom_out, shortcut=QKeySequence.ZoomOut)
+		tool_menu.addSeparator()
+		self.extensions_menu = tool_menu.addMenu("Extensions")
+				
+	def create_toolbar(self):
+		if hasattr(self.editor_class, 'class_actions'):
+			for i in self.editor_class.class_actions:
+				if i['action'] == 'tool':
+					tool = self.addToolBar(i['name'])
+					self.create_menu_from_list(tool, i['content'])
+					
+
+	def on_editor_state_changed(self, name, fname, mod_label, operation):
+		dash = '' if name == '' else '- '
+		self.setWindowTitle(f'{mod_label}{fname} {dash}TabPanel')
+		if operation in ['Opened', 'Saved', 'Saved as', 'Reload']:
+			self.set_status_bar_msg(f'{operation} {name}')
+			self.new_message.emit(f'{operation} {name}', 'info')
+		if operation in ['Opened', 'Saved as', 'Reopened']:
+			self.add_recent_file(fname)
 			
 	def create_status_bar(self):
 		self.statusBar = QStatusBar()
@@ -226,33 +301,11 @@ class MultiEditor(QMainWindow):
 		self.statusBar.showMessage("Ready")
 		
 	def set_permanent_status_msg(self, msg):
-		self.status_msg_box.setText(f"Строка: {msg}")	
-		
-	def on_editor_tab_status_changed(self):
-		self. set_window_title()
-		if self.iclear_support:
-			self.set_iclear_widget()
-		
-	def set_window_title(self):
-		""" self.tab_panel.tab_status_changed.connect(self.set_window_title) """
-		current_editor = self.tab_panel.get_current_editor()
-		if current_editor:
-			path_name, full_path_name, mod_label = current_editor.get_info()
-			self.setWindowTitle(f"{full_path_name + mod_label} - {self.win_title}")
-		else:
-			self.setWindowTitle(self.win_title)
-		
-	def set_iclear_widget(self):
-		if self.iclear_support:
-			current_editor = self.tab_panel.get_current_editor()
-			if current_editor:
-				path = current_editor.path
-				if path:
-					self.iclear_widget.fill_from_page_path(str(path))
-					
+		self.status_msg_box.setText(f"Line: {msg}")
+
 	def set_status_bar_msg(self, msg):
-		self.statusBar.showMessage(msg, 2000)	
-			
+		self.statusBar.showMessage(msg, 2000)
+		
 	def action_open_recent_file(self):
 		action = self.sender()
 		full_path = action.data()
@@ -318,9 +371,6 @@ class MultiEditor(QMainWindow):
 			self.settings.setArrayIndex(i)
 			self.recent_files.append(self.settings.value("f"))
 		self.settings.endArray()
-		
-		iclear_support = self.settings.value("iclear/support", 0)
-		self.iclear_support = True if iclear_support == '1' else False
 
 	def saveSettings(self, open_files):
 		font_point_size = self.font().pointSize()
@@ -340,14 +390,9 @@ class MultiEditor(QMainWindow):
 			self.settings.setValue("f", el)
 		self.settings.endArray()
 		
-		if self.iclear_support:
-			self.settings.setValue("iclear/support", '1')
-			self.settings.setValue("iclear/hostpath", self.iclear_hostpath)
-			self.settings.setValue("iclear/sitepath", self.iclear_sitepath)
-		else:
-			self.settings.setValue("iclear/support", '0')
 		self.settings.sync()
 		
+			
 class ErrorHandler():
 
 	def __init__(self, handle):
@@ -363,18 +408,16 @@ class ErrorHandler():
 		self.original_stderr.flush()
 		
 if __name__ == "__main__":
-	
-	import sys
 
 	app = QApplication(sys.argv)
-	multi_editor = MultiEditor()	
-	multi_editor.setWindowIcon(QIcon('icons/clear.svg'))		
+	clear_editor = ClearEditor(editor_class=HTMLEditor)	
+	clear_editor.setWindowIcon(QIcon('icons/clear.svg'))
 	
 	original_stderr = sys.stderr
-	sys.stderr = ErrorHandler(multi_editor.on_error)
-								 
-	multi_editor.show()			
-							
+	sys.stderr = ErrorHandler(clear_editor.on_error)
+	
+	clear_editor.show()
+	
 	app_exit_code = app.exec_()
 	sys.stderr = original_stderr
 	sys.exit(app_exit_code) 	

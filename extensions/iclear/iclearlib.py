@@ -236,7 +236,7 @@ class IHost(ANode):
 			tree = ET.parse(full_mapname)
 			maproot = tree.getroot()
 		except ET.ParseError as e:
-			Tools.output(f"Parsing error: {e} in IHost.fill", outtype = "error")
+			Tools.output(f"Parsing error: {e} in IHost.fill; host.nid={self.nid}", outtype = "error")
 			return False
  
 		uls = maproot.findall("ul")
@@ -287,7 +287,7 @@ class ISite(INode):
 			tree = ET.parse(full_mapname)
 			maproot = tree.getroot()
 		except ET.ParseError as e:
-			Tools.output(f"Parsing error: {e} in ISite.fill_sites()", outtype = "error")
+			Tools.output(f"Parsing error: {e} in ISite.fill_sites(); site.nid={self.nid}", outtype = "error")
 			return False
 		
 		nodedescr = maproot.find("descr")
@@ -349,7 +349,7 @@ class IMan(INode):
 			tree = ET.parse(full_mapname)
 			maproot = tree.getroot()
 		except ET.ParseError as e:
-			Tools.output(f"Parsing error: {e} in IMan.fill()", outtype = "error")
+			Tools.output(f"Parsing error: {e} in IMan.fill(); man.nid={self.nid}", outtype = "error")
 			return False
 		
 		uls = maproot.findall("ul")
@@ -554,7 +554,7 @@ class Service():
 			tree = ET.parse(full_mapname)
 			maproot = tree.getroot()
 		except ET.ParseError as e:
-			Tools.output(f"Parsing error: {e} in Service.regen_map()", outtype = "error")
+			Tools.output(f"Parsing error: {e} in Service.regen_map() map path={full_mapname}", outtype = "error")
 			return False
 		
 		maptext = "<map>\n"

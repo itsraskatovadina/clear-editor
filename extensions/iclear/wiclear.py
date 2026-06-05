@@ -345,5 +345,6 @@ if __name__ == "__main__":
 	sys.exit(app.exec_()) 		
 
 else:
-	import libiclear.iclear as iclib
+	#import libiclear.iclear as iclib
+	import extensions.iclear.iclearlib as iclib
 	

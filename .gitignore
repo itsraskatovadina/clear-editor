@@ -3,6 +3,7 @@ my/
 test_doc/
 __pycache__/
 lib/__pycache__/
-libiclear/__pycache__/
+extensions/__pycache__/
+extensions/iclear/__pycache__/
 
 *.ini

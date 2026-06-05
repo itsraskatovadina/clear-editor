@@ -1,7 +1,8 @@
 #! /usr/bin/python3
 
-class EditLib(object):
+class EditLib():
 	
+	@staticmethod
 	def capital_first_letter(txt):
 		lines = txt.split('\n')
 		out_lines = []
@@ -9,6 +10,7 @@ class EditLib(object):
 			out_lines.append(line.strip().capitalize())
 		return '\n'.join(out_lines)
 		
+	@staticmethod
 	def remove_empty_lines(txt):
 		lines = txt.split('\n')
 		out_lines = []
@@ -16,51 +18,47 @@ class EditLib(object):
 			if line:	
 				out_lines.append(line)
 		return '\n'.join(out_lines)
-	
+		
+	@staticmethod
 	def	replace_entity(txt):
 		txt = txt.replace("&", "&amp;")
 		txt = txt.replace("<", "&lt;")
 		txt = txt.replace(">", "&gt;")
 		return txt  
 		
+	@staticmethod
 	def	wrap(txt, tag = ''):
-		if tag == 'b':
-			txt = "<b>"+txt+"</b>"
-		elif tag == 'div':
-			txt = "<div>"+txt+"</div>"
-		elif tag == 'span':
-			txt = "<span>"+txt+"</span>"
-		elif tag == 'p':
-			if (txt.count('\n')==0):
-				txt = "<p>"+txt+"</p>"
+		if tag == 'p':
+			''' We wrap each line separately, we do not wrap empty lines,
+			  if there are leading spaces in the line, we leave them before the opening tag.  '''
+			if txt.count('\n') == 0:
+				txt = "<p>" + txt + "</p>"
 			else:
 				lines = txt.split('\n')
-				txt = ""
-				for i in lines[:]:
-					# пустые строки не оборачиваем
-					if (len(i.strip()) > 0):
+				result = []
+				for i in lines:
+					if len(i.strip()) > 0:
 						ilstrip = i.lstrip()
-						# если в строке есть лидирующие пробелы - оставляем их перед тегом
-						if (i == ilstrip):
-							txt = txt +"<p>"+i+"</p>"+'\n'
+						if i == ilstrip:
+							result.append("<p>" + i + "</p>")
 						else:
-							lenprefix = len(i)-len(ilstrip)
-							txt = txt + i[0:lenprefix] + "<p>"+ilstrip+"</p>"+'\n'
+							lenprefix = len(i) - len(ilstrip)
+							result.append(i[:lenprefix] + "<p>" + ilstrip + "</p>")
 					else:
-						txt = txt +'\n'
-				txt =  txt[:-1] # последний перенос лишний
+						result.append('')
+				txt = '\n'.join(result)
 		else:
-			print('not implemented')	
+			txt = f'<{tag}>{txt}</{tag}>'
 		return txt
 		
+	@staticmethod
 	def make_list(txt):
-		''' формируем список '''
-		lines = []
 		lines = txt.split('\n')
-		outtxt = "<ul>\n"
-		for i in lines[:]:
+		result = ["<ul>"]
+		for i in lines:
 			s = i.strip()
-			if (len(s) > 0):
-				outtxt = outtxt + "\t<li>"+i.strip()+"</li>\n"
-		outtxt = outtxt + "</ul>"
-		return outtxt
+			if len(s) > 0:
+				result.append("\t<li>" + s + "</li>")
+		result.append("</ul>")
+		return '\n'.join(result)
+

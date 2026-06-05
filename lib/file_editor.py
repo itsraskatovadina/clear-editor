@@ -1,52 +1,61 @@
 #! /usr/bin/python3
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QMainWindow, QTextEdit,
+                             QLabel, QStatusBar, QMessageBox, QFileDialog, QApplication)
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QIcon
 
 from pathlib import Path
 import datetime
 
-from lib.text_editor import *
-	
+from lib.text_editor import HTMLEditor
+
 class FileEditor(QWidget):
+	''' A wrapper over a custom editor '''
 	
-	html_extensions = ["html", "htm", "php"]
+	# name for new (unsaved) files
 	untitled_name = "untitled"
-	status_changed = pyqtSignal()  
-	modification_changed = pyqtSignal(bool)
+	# marker of the modified file
+	modification_label = "*"
+
+	# signal is emited when user modification changed a document, if the attribute is_programmatic_modification_change == False
+	# signal parameters - file name, file full path, modification label(*)
+	user_modification_changed = pyqtSignal(str, str, str)  
+	# signal cursor_position_changed parameter - line number.
 	cursor_position_changed = pyqtSignal(int)
+	# signal parameters - message text, message_type = 'debug'/'info'/'warning'/'error'
+	new_message = pyqtSignal(str, str)
 	
-	''' path: None | Path '''
-	def __init__(self, parent=None, editor=QTextEdit, path=None):
+	def __init__(self, parent=None, editor_class=QTextEdit, path=None):
+		''' constructor accepts parent, editor_class (default QTextEdit), path (None | Path) '''
+	
 		super(FileEditor, self).__init__(parent)
-		
-		self.editor = editor(parent=self)
+				
+		self.editor = editor_class(parent=self)
 		hbox = QHBoxLayout()	
-		hbox.setContentsMargins(0,0,0,0)
+		hbox.setContentsMargins(0, 0, 0, 0)
 		hbox.addWidget(self.editor)		
-		self.setLayout(hbox)	
+		self.setLayout(hbox)
+		
+		# a sign of programmatic modification of the document
+		self.is_programmatic_modification_change = False
+		
 		self.editor.document().modificationChanged.connect(self.on_editor_modification_changed)
 		self.editor.cursorPositionChanged.connect(self.on_cursor_position_changed)
-
-		self.modified = False
+		
+		# the path to the document file, or None for the new file
 		self.path = path
-		if self.path:
-			self.load_from_file()
-
-	def on_editor_modification_changed(self, flag):
-		self.modified = flag
-		self.status_changed.emit()
+		# the time of the last program modification of the file
+		self.last_file_mtime = datetime.datetime.now()
 
 	def isModified(self):
-		return self.modified
+		return self.editor.document().isModified()
 
-	def on_cursor_position_changed(self):
-		line_num = self.editor.textCursor().blockNumber() + 1
-		self.cursor_position_changed.emit(line_num)
+	def setModified(self, flag):
+		self.editor.document().setModified(flag)
 
 	def get_modification_label(self):
-		return "*" if self.modified else ""
+		return FileEditor.modification_label if self.isModified() else ''
 		
 	def get_path_name(self):
 		return self.path.name if self.path else FileEditor.untitled_name
@@ -57,44 +66,61 @@ class FileEditor(QWidget):
 	def get_info(self):
 		return self.get_path_name(), self.get_full_path(), self.get_modification_label()
 		
+	def emit_user_modification_changed(self):
+		name, fname, mod_label = self.get_info()
+		self.user_modification_changed.emit(name, fname, mod_label)
+		
+	def on_editor_modification_changed(self, flag):
+		# emit a signal only if the document is changed by the user
+		if not self.is_programmatic_modification_change:
+			self.emit_user_modification_changed()
+
+	def on_cursor_position_changed(self):
+		line_num = self.editor.textCursor().blockNumber() + 1
+		self.cursor_position_changed.emit(line_num)
+
 	def load_from_file(self):
-		file_content = self.path.read_text(encoding="utf-8")
-		if file_content:
-			suffix = self.path.suffix[1:]
-			if suffix in FileEditor.html_extensions:
-				self.editor.setPlainText(file_content)
-			else:
-				self.editor.setText(file_content)
+		''' Reading a file from disk, loading content into the editor.
+			Sets the modification flag programmatically to avoid triggering
+			user modification signals. Updates last_file_mtime on success.
+			On error, emits an error message via new_message signal and returns False.'''
+		try:
+			file_content = self.path.read_text(encoding="utf-8")
+			self.is_programmatic_modification_change = True
+			self.editor.setPlainText(file_content) 
+			self.is_programmatic_modification_change = False
 			self.last_file_mtime = datetime.datetime.now()
-			self.status_changed.emit()
 			return True
+		except Exception as err:
+			self.new_message.emit(str(err), 'error')
+			return False
 			
 	def save_to_file(self):  
-		"""Writing an existing file with old name"""
-		if self.path.write_text(self.editor.toPlainText()):
+		''' Writing an existing file to disk.
+			Sets the modification flag to False programmatically to avoid triggering
+			user modification signals. Updates last_file_mtime on success.
+			On error, emits an error message via new_message signal and returns False.'''
+		try:
+			self.path.write_text(self.editor.toPlainText())
 			self.last_file_mtime = datetime.datetime.now()
-			self.set_doc_modified_without_notification(False)
-			self.status_changed.emit()
+			self.is_programmatic_modification_change = True
+			self.setModified(False)
+			self.is_programmatic_modification_change = False
 			return True
+		except Exception as err:
+			self.new_message.emit(str(err), 'error')
+			return False
 			
 	def save_as_file(self, path):  
 		"""Writing a new file or a file with a new name"""
 		self.path = path
 		return self.save_to_file()
-			
-	def set_doc_modified_without_notification(self, flag):
-		self.editor.document().modificationChanged.disconnect(self.on_editor_modification_changed)
-		self.editor.document().setModified(flag)
-		self.modified = flag
-		self.editor.document().modificationChanged.connect(self.on_editor_modification_changed)
-		
 		
 	def is_externally_modified(self): 
 		if self.path:
-			stat = self.path.stat()
-			file_mtime = stat.st_mtime
-			file_datetime = datetime.datetime.fromtimestamp(file_mtime)
-			return True if self.last_file_mtime < file_datetime else False
-			
-	def closeEvent(self, event):
-		event.accept()
+			if self.path.exists():
+				stat = self.path.stat()
+				file_mtime = stat.st_mtime
+				file_datetime = datetime.datetime.fromtimestamp(file_mtime)
+				return True if self.last_file_mtime < file_datetime else False
+		return False

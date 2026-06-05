@@ -1,24 +1,34 @@
 #! /usr/bin/python3
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5.QtWidgets import QTextEdit, QInputDialog, QApplication
+from PyQt5.QtCore import Qt, QRegularExpression
+from PyQt5.QtGui import QSyntaxHighlighter, QTextCursor, QTextCharFormat, QColor, QFont
     
 from lib.editorlib import EditLib
 
 class HtmlHighlighter(QSyntaxHighlighter):
+
+	tag_format = QTextCharFormat()
+	tag_format.setForeground(QColor("blue"))
+	tag_format.setFontWeight(QFont.Bold)
+	quote_format = QTextCharFormat()
+	quote_format.setForeground(QColor("green"))
+	comment_format = QTextCharFormat()
+	comment_format.setForeground(QColor("red"))
+
+	tag_pattern = QRegularExpression(r"<[^>]+>")
+	quote_pattern = QRegularExpression(r"'[^']*'")
+	double_quote_pattern = QRegularExpression(r'"[^"]*"')
+	comment_pattern = QRegularExpression(r"<!--(?:[^-]|-(?!-))*-->")
+		
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		self.highlighting_rules = []
-
-		# Формат для тегов
-		tag_format = QTextCharFormat()
-		tag_format.setForeground(QColor("green"))
+		self.highlighting_rules.append((HtmlHighlighter.tag_pattern, HtmlHighlighter.tag_format))
+		self.highlighting_rules.append((HtmlHighlighter.quote_pattern, HtmlHighlighter.quote_format))
+		self.highlighting_rules.append((HtmlHighlighter.double_quote_pattern, HtmlHighlighter.quote_format))
+		self.highlighting_rules.append((HtmlHighlighter.comment_pattern, HtmlHighlighter.comment_format))
 		
-		# Регулярное выражение для <...>
-		pattern = QRegularExpression(r"<[^>]+>")
-		self.highlighting_rules.append((pattern, tag_format))
-
 	def highlightBlock(self, text):
 		for pattern, format in self.highlighting_rules:
 			match_iter = pattern.globalMatch(text)
@@ -28,24 +38,40 @@ class HtmlHighlighter(QSyntaxHighlighter):
 
 class TextEditor(QTextEdit):
 
-	text_actions = []
-	text_actions.append({'action': "remove_empty_lines_in_selected", 'name': "Remove empty lines"})
-	text_actions.append({'action': "capitalize_first_letters_in_selected", 'name': "Capitalize first letters"})
+	actions = [
+		{'action': "remove_empty_lines_in_selected", 'name': "Remove empty lines"},
+		{'action': "capitalize_first_letters_in_selected", 'name': "Capitalize first letters"}
+	]
+	
+	index_actions = {}
+	for i in actions: index_actions[i['action']] = i
+	
+	class_actions = [
+		{'action': "menu", 'name': "Text", 'content': [
+			index_actions['remove_empty_lines_in_selected'],
+			index_actions['capitalize_first_letters_in_selected']
+		]}
+	]
 	
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		
-	def selectedTextProcessing(self, func):
+	def selectedTextProcessing(self, func, **kwargs):
 		''' processing selected text '''
 		cursor = self.textCursor()
-		if cursor.hasSelection():
-			selected_text = cursor.selectedText().replace("\u2029", "\n")
-			# replace it, put it in the clipboard, paste it into the selected area
-			# done via Copy/Paste so that there is only one action left in the Undo/Redo history.
-			outtxt = func(selected_text)
-			clipboard = QApplication.clipboard()
-			clipboard.setText(outtxt)
-			self.paste()
+		if not cursor.hasSelection():
+			return False
+		selected_text = cursor.selectedText().replace("\u2029", "\n")
+		out_text = func(selected_text, **kwargs)
+		cursor.beginEditBlock()
+		cursor.removeSelectedText()
+		cursor.insertText(out_text)
+		cursor.endEditBlock()
+		# selecting the processed text
+		cursor.setPosition(cursor.position() - len(out_text))
+		cursor.setPosition(cursor.position() + len(out_text), 
+						  QTextCursor.MoveMode.KeepAnchor)
+		self.setTextCursor(cursor)
 					
 	def remove_empty_lines_in_selected(self):
 		''' remove the empty lines in the selected block  '''
@@ -57,20 +83,39 @@ class TextEditor(QTextEdit):
 
 class HTMLEditor(TextEditor):
 
-	html_actions = [
+	actions = TextEditor.actions.copy()
+	actions.extend([
 		{'action': "replace_entity", 'name': "Replace entity"},
-		{'action': "menu", 'name': "Wrap", 'action_list': [
-			{'action': "wrap", 'name': "Wrap <p>"},
-			{'action': "wrap_b", 'name': "Wrap <b>"},
-			{'action': "wrap_div", 'name': "Wrap <div>"},               
-			{'action': "select_tag_to_wrap", 'name': "Select tag to wrap"}
-			]},
-		{'action': "make_list", 'name': "Make list"}
-		]
+		{'action': "wrap_p", 'name': "Wrap <p>", 'icon': 'icons/tagp.png', 'tooltip': "Wrap &lt;p&gt;", 'statustip': "Wrap selected <p>...</p>"},
+		{'action': "wrap_b", 'name': "Wrap <b>", 'icon': 'icons/tagb.png'},
+		{'action': "wrap_div", 'name': "Wrap <div>"},               
+		{'action': "select_tag_to_wrap", 'name': "Select tag to wrap"},
+		{'action': "wrap_selected_tag", 'name': "Wrap selected tag"},
+		{'action': "make_list", 'name': "ul", 'tooltip': "Make list"}
+	])
 
-	html_tools = [
-		{'action': "wrap", 'name': "Wrap <p>", 'icon': 'icons/tagp.png', 'tooltip': "Wrap &lt;p&gt;", 'statustip': "Wrap selected <p>...</p>"},
-		{'action': "wrap_b", 'name': "Wrap <b>", 'icon': 'icons/tagb.png'}]
+	index_actions = {}
+	for i in actions: index_actions[i['action']] = i
+	
+	class_actions = TextEditor.class_actions.copy()
+	class_actions.extend([
+		{'action': "menu", 'name': "HTML", 'content': [
+			index_actions['replace_entity'],
+			{'action': "menu", 'name': "Wrap", 'content': [
+				index_actions['wrap_p'],
+				index_actions['wrap_b'],
+				index_actions['wrap_div'],
+				index_actions['select_tag_to_wrap'],
+				index_actions['wrap_selected_tag']
+			]},
+			index_actions['make_list']
+		]},
+		{'action': "tool", 'name': "HTML", 'content': [
+			index_actions['wrap_p'],
+			index_actions['wrap_b'],
+			index_actions['make_list']
+		]}
+	])
 	
 	def __init__(self, parent=None):
 		super().__init__(parent)
@@ -78,6 +123,7 @@ class HTMLEditor(TextEditor):
 		self.highlighter = HtmlHighlighter(self.document())
 		self.autocompletion_tags = ['p', 'b', 'div', 'span', 'a', 'ul', 'li',
 			'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'tr', 'td']
+		self.tag_to_wrap = 'span'
 
 	def keyPressEvent(self, event):
 		#auto-completion of tags — intercepting the input '>' is a sign of tag closure
@@ -98,7 +144,6 @@ class HTMLEditor(TextEditor):
 			if not tag_candidate or tag_candidate.startswith('/'):
 				super().keyPressEvent(event)
 				return
-
 			# check that this is a known tag
 			if tag_candidate in self.autocompletion_tags:
 				# insert the '>' and close the tag
@@ -114,29 +159,29 @@ class HTMLEditor(TextEditor):
 		super().keyPressEvent(event)
 
 	def replace_entity(self):
-		''' в выделенном фрагменте заменяет html entity '''
+		''' replaces the html entity in the selected fragment '''
 		self.selectedTextProcessing(EditLib.replace_entity)
 
-	def wrap(self, tag = 'p'):
-		''' оборачивает выделенный фрагмент '''
-		cursor = self.textCursor()
-		if cursor.hasSelection():
-			selected_text = cursor.selectedText().replace("\u2029", "\n")
-			# оборачиваем, помещаем в буфер обмена, вставляем
-			wrapped_text = EditLib.wrap(selected_text, tag)
-			clipboard = QApplication.clipboard()
-			clipboard.setText(wrapped_text)
-			self.paste()
+	def wrap_p(self):
+		self.selectedTextProcessing(EditLib.wrap, tag='p')
 
 	def wrap_b(self):
-		self.wrap('b')
-
+		self.selectedTextProcessing(EditLib.wrap, tag='b')
+		
 	def wrap_div(self):
-		self.wrap('div')
+		self.selectedTextProcessing(EditLib.wrap, tag='div')
 		
 	def select_tag_to_wrap(self):
-		pass
+		'''  to be implemented  '''
+		s, ok = QInputDialog.getItem(self, "Select tag",
+			f"Select the tag for the wrap operation,<br> the '{self.tag_to_wrap}' tag is currently selected",
+			 self.autocompletion_tags[3:], current=1, editable=False)
+		if ok:
+			self.tag_to_wrap = s
+		
+	def wrap_selected_tag(self):
+		self.selectedTextProcessing(EditLib.wrap, tag=self.tag_to_wrap)
 		
 	def make_list(self):
-		''' в выделенном фрагменте формирует список из не пустых строк '''
+		''' generates a list of non-empty lines in the selected fragment '''
 		self.selectedTextProcessing(EditLib.make_list)
