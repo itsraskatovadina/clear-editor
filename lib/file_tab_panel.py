@@ -80,7 +80,7 @@ class TabPanel(QTabWidget):
 					self.do_not_process_the_tab_change = False
 					fname = str(path)
 					self.new_message.emit(f'file {fname} already open', 'info')
-					mod_label  = editor.get_modification_label()
+					mod_label  = self.get_current_editor().get_modification_label()
 					self.editor_state_changed.emit(path.name, fname, mod_label, 'Reopened')
 					return True
 			if not path.exists():
@@ -266,8 +266,7 @@ class TabPanel(QTabWidget):
 				self.on_app_focus_changed_temporarily_disabled = False
 			
 	def check_tab_externally_modified(self, index, editor):
-		""" warning - if no file or file has been changed 
-			self.currentChanged.connect(self.check_current_tab_externally_modified)	"""
+		""" warning - if no file or file has been changed """
 		if editor.path is None:
 			return False
 		if not self.check_path_exists(editor.path):
