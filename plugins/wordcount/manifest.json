@@ -1,0 +1,6 @@
+{
+    "name": "wordcount",
+    "description": "Подсчёт слов в редакторе",
+    "entry": "main.py",
+    "class": "WordCountPlugin"
+}

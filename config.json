@@ -1,0 +1,7 @@
+{
+    "plugins_dir": "plugins",
+    "ui_defaults": {
+        "geometry/pos": [300, 180],
+        "geometry/size": [1000, 500]
+    }
+}

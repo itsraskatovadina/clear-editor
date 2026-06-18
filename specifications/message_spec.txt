@@ -1,0 +1,78 @@
+МЕХАНИЗМ СООБЩЕНИЙ
+(specifications/message_spec.txt)
+
+1. НАЗНАЧЕНИЕ
+-------------
+Обеспечить передачу сообщений от редакторов (FileEditor) к панели сообщений (MsgPanel)
+через цепочку сигналов: FileEditor → TabPanel → EditorApp → MsgPanel,
+а также обработку системных ошибок (stderr) через ErrorHandler.
+
+2. СИГНАЛЫ
+----------
+2.1. FileEditor.message = pyqtSignal(str, str, str)
+     Параметры: (message_text, sender, message_type)
+     message_type: 'debug' | 'info' | 'warning' | 'error'
+
+2.2. TabPanel.message = pyqtSignal(str, str, str)
+     Параметры: (message_text, sender, message_type)
+
+2.3. MsgPanel.new_error = pyqtSignal(str)
+     Параметр: (message_text) — для критических ошибок из stderr
+
+3. МАРШРУТ СООБЩЕНИЯ
+---------------------
+FileEditor.message
+  → TabPanel.on_message (editor.message.connect)
+  → TabPanel.message.emit
+  → EditorApp.on_message (tab_panel.message.connect)
+  → MsgPanel.new_message(msg, sender, msgtype)
+
+Маршрут ошибок stderr:
+sys.stderr → ErrorHandler.write → EditorApp.on_error → MsgPanel.new_error.emit → MsgPanel._display_error
+
+4. ОБРАБОТКА В MSGPANEL
+------------------------
+4.1. MsgPanel.new_message(msg, sender=None, msgtype=None)
+     - Цвет зависит от msgtype: 'debug' → gray, 'info' → blue, 'warning' → orange, 'error' → red
+     - Если передан sender, добавляется префикс '[sender] '
+     - Если msgtype='error', сообщение выводится на вкладку Err, иначе — на Msg
+     - Переключает видимую вкладку на Err или Msg и подаёт звуковой сигнал
+
+4.2. MsgPanel.new_error (сигнал) → _display_error
+     - Выводит сообщение на вкладку Err красным цветом
+     - Переключает на вкладку Err и подаёт звуковой сигнал
+
+5. КЛАССЫ-ПОМОЩНИКИ
+--------------------
+5.1. ErrorHandler(handle)
+     - Замена sys.stderr: перенаправляет stderr в handle (EditorApp.on_error)
+     - Одновременно пишет в оригинальный stderr
+     - Методы: write(message), flush()
+
+5.2. EditorApp.on_error(self, msg)
+     - Вызывает self.msg_panel.new_error.emit(msg)
+
+6. ПРОБЛЕМЫ
+-----------
+1. [ИСПРАВЛЕНО] MsgPanel.new_message использует msgtype для выбора цвета:
+   'debug' → gray, 'info' → blue, 'warning' → orange, 'error' → red.
+   sender отображается как префикс '[sender] '.
+
+2. MsgPanel.new_error(msg) — выводятся только не пойманные ошибки.
+
+3. [ИСПРАВЛЕНО] MsgPanel.new_message фильтрует и форматирует вывод
+   по msgtype (цвета и префикс sender).
+
+4. MsgPanel.new_message ВСЕГДА выводит на msg_box, независимо от msgtype.
+   Перенаправление на err_box не реализовано.
+
+5. ErrorHandler.write(message) вызывается для каждой строки вывода stderr —
+   handle может вызываться для пустых строк и частичных буферов.
+   Возможно, стоит добавить буферизацию строк.
+
+6. Восстановление sys.stderr происходит после app.exec_() — если во время
+   работы приложения возникнет исключение в EventLoop, original_stderr
+   может не восстановиться.
+
+7. ErrorHandler не является потокобезопасным — при многопоточном stderr
+   возможны race conditions.

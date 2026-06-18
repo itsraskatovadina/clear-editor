@@ -1,0 +1,114 @@
+ТЕХНИЧЕСКОЕ ЗАДАНИЕ
+(specifications/state_spec.txt)
+
+Управление настройками и состоянием сессии
+
+1.1 Приложение должно поддерживать раздельное хранение:
+    - Статической конфигурации (не изменяется приложением, редактируется разработчиком) в файле config.json;
+    - Динамического состояния сессии (изменяется пользователем, сохраняется между запусками) в файле settings.ini.
+ 	Хранить оба файла конфигурации располагаются в текущей рабочей директории
+	
+ 	- EditorApp в init загружает config и settings в свои атрибуты экземпляра, main получает их и работает с ними
+ 	- Правило "Если в settings.ini нет соответствующего ключа - используем значение из config.json" выполняется не для всех ключей,
+ 	Напрмер settings.value("geometry/pos", QPoint(100, 100))) и  settings.value("geometry/size", QSize(1200, 800))) будем брать из из config.json["ui_defaults"],
+ 	 active_plugins не задаем по умолчанию - пользователь сам подключит
+
+2. Статическая конфигурация (config.json)
+2.1. Формат и расположение
+    Формат: JSON (UTF-8 без BOM);
+    Имя файла: config.json;
+    Расположение: в текущей рабочей директории
+    
+2.3. Правила работы
+    Файл только для чтения со стороны приложения (приложение не должно его изменять)
+    При отсутствии config.json приложение должно завершиться с критической ошибкой и сообщением пользователю
+    При повреждении JSON (ошибка парсинга) — вывести ошибку и завершиться
+    
+2.4 Содержимое файла config.json:
+    путь к plugins/ (_plugins_dir)
+    
+3. Динамическое состояние сессии (settings.ini)
+3.1. Формат и расположение
+    Формат: INI через QSettings с QSettings.IniFormat
+    Имя файла: settings.ini
+    Расположение: в текущей рабочей директории
+    Кодировка: UTF-8
+    
+3.2. Правила работы
+    При первом запуске файл создаётся автоматически через QSettings
+    EditorApp должно сохранять состояние в closeEvent() главного окна
+    При повреждении INI-файла — создать новый с настройками по умолчанию (из config.json)
+    Типы данных при чтении должны явно восстанавливаться
+    
+3.3 Содержимое файла settings.ini:
+	[General]
+	active_plugins=wordcount, textprocessing
+
+	[open_files] — beginWriteArray/beginReadArray
+	1\f=path/to/file1.txt
+	2\f=path/to/file2.txt
+
+	[recent_files] — beginWriteArray/beginReadArray
+	1\f=path/to/file1.txt
+	2\f=path/to/file2.txt
+
+4. Взаимодействие и приоритеты
+4.1. settings.ini отсутствует	Создать автоматически, заполнить значениями по умолчанию из config.json["ui_defaults"]
+4.2. settings.ini повреждён	Пересоздать, предупредив пользователя
+4.3. В settings.ini нет ключа	Использовать значение из config.json["ui_defaults"]
+4.4. Приоритет при дублировании	Сессия (settings.ini) переопределяет статику (config.json)
+
+5. АРХИТЕКТУРА ЗАГРУЗКИ (реализовано)
+5.1. EditorApp.__init__ создаёт окно, НЕ загружает конфиги.
+5.2. Загрузка вынесена в отдельный метод EditorApp.load_config():
+     - Читает config.json (json.load)
+     - Если файл отсутствует или повреждён → raise ConfigError("...")
+     - Создаёт self.settings = QSettings("settings.ini", QSettings.IniFormat)
+     - Восстанавливает геометрию окна:
+         pos = self.settings.value("geometry/pos")
+         if not pos: pos = QPoint(*self.config["ui_defaults"]["geometry/pos"])
+         size = self.settings.value("geometry/size")
+         if not size: size = QSize(*self.config["ui_defaults"]["geometry/size"])
+         self.move(pos); self.resize(size)
+     - Восстанавливает font_size, recent_files (beginReadArray)
+5.3. EditorApp.closeEvent() — сохраняет состояние сессии:
+     - geometry/pos, geometry/size, font_size
+     - open_files (beginWriteArray из tab_panel.get_open_files())
+     - recent_files (beginWriteArray)
+     - settings.sync()
+     event.accept()
+
+6. ВЗАИМОДЕЙСТВИЕ С MAIN.PY
+6.1. editor_app = EditorApp()
+6.2. try: editor_app.load_config()
+     except ConfigError as e:
+         print(e)
+         sys.exit(1)
+6.3. editor_app.set_tab_panel() — восстановление открытых вкладок
+6.4. settings = editor_app.settings (main использует этот объект)
+6.5. plugin_manager = PluginManager(editor_app, plugins_dir=...)
+6.6. active_plugins не имеет умолчания из config.json — пользователь подключает сам
+
+7. СТРУКТУРА ФАЙЛОВ КОНФИГУРАЦИИ
+7.1. config.json (создаётся вручную):
+     {
+         "plugins_dir": "plugins",
+         "ui_defaults": {
+             "geometry/pos": [200, 150],
+             "geometry/size": [1500, 900]
+         }
+     }
+     - geometry/pos и geometry/size хранятся как массивы [x, y] / [w, h]
+     - В коде преобразуются в QPoint/QSize при чтении
+7.2. settings.ini (создаётся QSettings автоматически):
+     [General]
+     active_plugins=textprocessing
+
+     [open_files]
+     size=2
+     1\f=path/to/file1.txt
+     2\f=path/to/file2.txt
+
+     [recent_files]
+     size=1
+     1\f=path/to/file1.txt

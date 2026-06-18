@@ -1,0 +1,152 @@
+ТРЕБОВАНИЯ К ФУНКЦИОНАЛЬНОСТИ EditorApp
+(specifications/editor_app_spec.txt)
+
+Главное окно приложения, корневой компонент ClearEditor.
+
+1. EditorApp(QMainWindow) — десктопное приложение на PyQt5, обёртка над
+   QSplitter(Vertical) из двух панелей: TabPanel (сверху) и MsgPanel (снизу),
+   размещённым в QMainWindow. Соотношение размеров 500:100.
+   TabPanel — QTabWidget, каждая вкладка содержит FileEditor с ExtEditor.
+   MsgPanel — QTabWidget с вкладками Err и Msg.
+   Содержит QStatusBar с постоянным QLabel для номера строки.
+    
+2. АТРИБУТЫ КЛАССА
+   - win_title = "Text Editor" — заголовок окна по умолчанию.
+   - recent_files_changed = pyqtSignal() — сигнал об изменении списка
+     последних файлов.
+
+3. АТРИБУТЫ ЭКЗЕМПЛЯРА
+   - config: dict | None — загруженный JSON из config.json.
+   - settings: QSettings | None — QSettings("settings.ini", QSettings.IniFormat).
+   - tab_panel: TabPanel — панель вкладок (верхняя часть).
+   - msg_panel: MsgPanel — панель сообщений (нижняя часть).
+   - splitter: QSplitter — вертикальный сплиттер, содержит tab_panel и msg_panel.
+   - statusBar: QStatusBar — строка состояния.
+   - line_label: QLabel — постоянный виджет в statusBar для отображения номера строки.
+   - recent_files: list[str] — список последних открытых файлов (макс. 10).
+
+4. КОНСТРУКТОР
+   def __init__(self):
+   - Устанавливает заголовок окна.
+   - Устанавливает иконку окна icons/clear.svg.
+   - Инициализирует recent_files = [].
+   - Создаёт TabPanel(parent=self, editor_class=ExtEditor).
+   - Создаёт MsgPanel(parent=self).
+   - Подключает сигналы:
+       tab_panel.message → self.on_message
+       tab_panel.editor_state_changed → self.on_editor_state_changed
+   - Создаёт QSplitter(Qt.Vertical), добавляет tab_panel и msg_panel,
+     устанавливает размеры [500, 100], назначает центральным виджетом.
+   - Создаёт QStatusBar, устанавливает как статус-бар окна.
+   - Создаёт QLabel (line_label), добавляет как permanent widget в статус-бар.
+   - Подключает tab_panel.line_changed → обновление text line_label.
+
+5. ЗАГРУЗКА КОНФИГУРАЦИИ
+   def load_config(self):
+   - Читает config.json (json.load) из текущей рабочей директории.
+   - При отсутствии config.json → raise ConfigError("Отсутствует файл конфигурации config.json")
+   - При повреждённом JSON → raise ConfigError("Ошибка парсинга config.json: ...")
+   - Создаёт self.settings = QSettings("settings.ini", QSettings.IniFormat)
+   - Восстанавливает геометрию окна:
+       pos = settings.value("geometry/pos")
+       если None: pos = QPoint(*config["ui_defaults"]["geometry/pos"])
+       size = settings.value("geometry/size")
+       если None: size = QSize(*config["ui_defaults"]["geometry/size"])
+       self.move(pos); self.resize(size)
+   - Восстанавливает font_size (settings.value("font_size", 12)), устанавливает QFont.
+   - Восстанавливает recent_files через beginReadArray("recent_files").
+
+6. ВОССТАНОВЛЕНИЕ ВКЛАДОК
+   def set_tab_panel(self):
+   - Читает список файлов из settings через beginReadArray("open_files").
+   - Если список не пуст — вызывает tab_panel.set_files(file_list).
+   - Если после set_files tab_panel.count() == 0 — вызывает tab_panel.new_tab().
+
+7. ЗАВЕРШЕНИЕ РАБОТЫ
+   def closeEvent(self, event):
+   - Сохраняет в settings: geometry/pos, geometry/size, font_size.
+   - Сохраняет open_files через beginWriteArray("open_files") из tab_panel.get_open_files().
+   - Сохраняет recent_files через beginWriteArray("recent_files").
+   - Вызывает settings.sync().
+   - event.accept().
+
+8. УПРАВЛЕНИЕ ШРИФТОМ (ZOOM)
+   def zoom_in(self):
+   - Увеличивает pointSize текущего шрифта на 1.
+   def zoom_out(self):
+   - Уменьшает pointSize текущего шрифта на 1 (минимум 6 pt).
+
+9. RECENT FILES
+   def add_recent_file(self, path):
+   - Если path уже в recent_files — удаляет старую запись.
+   - Вставляет path в начало списка.
+   - Обрезает список до 10 элементов.
+
+   def action_open_recent_file(self):
+   - Получает отправителя (action) через self.sender().
+   - Извлекает путь из action.data().
+   - Вызывает self.tab_panel.add_tab(Path(full_path)).
+
+   def action_clear_recent_files(self):
+   - Очищает self.recent_files = [].
+   - Эмитит recent_files_changed.
+
+10. ДОСТУП К РЕДАКТОРУ
+    def current_editor(self) -> QTextEdit:
+    - Делегирует вызов tab_panel.current_editor().
+
+11. ОБРАБОТЧИКИ СИГНАЛОВ
+    def on_message(self, msg, sender, msgtype):
+    - Передаёт сообщение в msg_panel.new_message(msg, sender, msgtype).
+    def on_error(self, msg):
+    - Эмитит msg_panel.new_error.emit(msg).
+    def on_editor_state_changed(self, name, fname, mod_label, operation):
+    - Обновляет заголовок окна (формат: "{mod_label}{fname} - {win_title}").
+    - Для операций 'Opened', 'Saved', 'Saved as', 'Reload' — показывает
+      временное сообщение в статус-баре (2000 мс).
+    - Для операций 'Opened', 'Saved as', 'Reload' — вызывает add_recent_file(fname)
+      и эмитит recent_files_changed.
+
+12. ВЗАИМОДЕЙСТВИЕ С MAIN.PY
+    - editor_app = EditorApp()
+    - editor_app.load_config() (с обработкой ConfigError)
+    - editor_app.set_tab_panel() — restore вкладок
+    - editor_app.settings передаётся PluginManager и другим компонентам.
+    - editor_app.tab_panel.on_app_focus_changed подключается к app.focusChanged.
+    - editor_app.on_error используется для ErrorHandler(sys.stderr).
+    - menu_bar = editor_app.menuBar(); create_menu_bar(menu_bar) — создаёт File меню.
+    - editor_app.recent_files_changed.connect(update_recent_files_menu) — обновление
+      подменю Recent files при изменении списка.
+    - Меню Settings создаётся отдельно после загрузки плагинов.
+
+13. ТРЕБОВАНИЯ К МЕНЮ (реализуются в main.py, но специфицируются здесь)
+   13.1. Меню File (создаётся в create_menu_bar):
+        - New — tab_panel.new_tab
+        - Open — tab_panel.open_file
+        - Save — tab_panel.current_tab_save
+        - Save As — tab_panel.current_tab_save_as
+        - Close — tab_panel.current_tab_close
+        --- разделитель ---
+        - Reload — tab_panel.current_tab_reload
+        --- разделитель ---
+        - Property — tab_panel.current_tab_view_property
+        --- разделитель ---
+        - Recent files > (editor_app.recent_files_menu)
+            динамический список, обновляется через update_recent_files_menu
+   13.2. Меню Settings:
+        - Zoom In — editor_app.zoom_in
+        - Zoom Out — editor_app.zoom_out
+        --- разделитель ---
+        - Plugins — open_plugin_settings (диалог PluginWidget)
+
+14. ЗАДАНИЕ НА РАЗРАБОТКУ ТЕСТА
+    Разработать скрипт tests/test_editor_app.py для визуального тестирования EditorApp:
+    - QApplication и EditorApp как главное окно.
+    - Загрузка конфигурации (load_config) с корректным config.json.
+    - Проверка создания TabPanel, MsgPanel, QSplitter, QStatusBar.
+    - Проверка zoom_in/zoom_out (изменение шрифта).
+    - Проверка closeEvent (сохранение настроек).
+    - Проверка add_recent_file, action_clear_recent_files.
+    - Проверка set_tab_panel (восстановление open_files из settings).
+    - Подключение сигналов: editor_state_changed, line_changed, message, recent_files_changed.
+    - Отображение окна с иконкой icons/clear1.jpg.

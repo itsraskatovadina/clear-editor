@@ -1,0 +1,119 @@
+ТЕХНИЧЕСКОЕ ЗАДАНИЕ
+(specifications/main_spec.txt)
+
+Проект: ClearEditor - десктопный текстовый редактор на PyQt5 с динамической подгрузкой плагинов
+ЗАВИСИМОСТИ: Python 3.x, PyQt5 
+
+Параметры рабочего компьютера: путь к виртуальному окружению  - '/home/dina/DINDATA/IT/PYTHON/venv/python3.9_pyqt5/.venv'
+
+1. ОБЩЕЕ ОПИСАНИЕ
+-----------------
+1.1. Название приложения - ClearEditor, цель разработки - создание материала для обучения.
+1.2. ClearEditor (класс EditorApp, файл core/editor_app.py) - десктопное приложение на PyQt5, обёртка над QSplitter(Vertical) из двух панелей:
+     TabPanel (сверху) и MsgPanel (снизу), размещённым в QMainWindow. Соотношение размеров 500:100.
+     TabPanel — QTabWidget, каждая вкладка содержит FileEditor с ExtEditor.
+     MsgPanel — QTabWidget с вкладками Err и Msg.
+1.3. ClearEditor может динамически подключать плагины, размещенные в папке plugins с помощью plugin_manager
+1.4. Поддерживает сохранение состояния сессии между запусками с помощью QSettings PyQt5, QSettings.IniFormat,
+    файл настроек settings.ini хранится в рабочей директории. 
+    Статическая конфигурация приложения хранится в файле config.json в рабочей директории.
+ 
+1.5. Qt-классы: 
+    - EditorApp(QMainWindow) — корневой компонент ClearEditor, десктопное приложение на PyQt5, обёртка над
+      QSplitter(Vertical) из двух панелей: TabPanel (сверху) и MsgPanel (снизу).
+    - TabPanel — QTabWidget, окно редактора мультидокументов в EditorApp, каждая вкладка содержит FileEditor;
+    - MsgPanel;
+    - FileEditor — QWidget, обертка QTextEdit (или его подкласс, такой как ExtEditor),
+      выполняет файловые функции для отдельного документа: открытие, сохранение на диск, отслеживает внешние изменения в базовом файле;
+    - ExtEditor - расширение QTextEdit;
+    - PluginManager - управление загрузкой плагинов;
+
+2. СТРУКТУРА ПРОЕКТА
+-----------------
+
+project_extension/
+├── AGENTS.md
+├── config.json
+├── settings.ini
+├── core/
+│   ├── __init__.py
+│   ├── editor_app.py
+│   ├── tab_panel.py
+│   ├── ext_editor.py
+│   ├── file_editor.py
+│   └── msg_panel.py
+├── docs/
+│   └── class_diagram.mmd
+├── icons/
+│   ├── clear.svg
+│   └── clear_test.jpg
+├── main.py
+├── plugins/
+│   ├── textprocessing/
+│   │   ├── manifest.json
+│   │   └── main.py
+│   └── wordcount/
+│       ├── manifest.json
+│       └── main.py
+├── plugins_service/
+│   ├── __init__.py
+│   ├── plugin_base.py
+│   ├── plugin_manager.py
+│   └── plugin_widget.py
+├── specifications/
+│   ├── editor_app_spec.txt
+│   ├── editor_panel_spec.txt
+│   ├── ext_editor_spec.txt
+│   ├── file_editor_spec.txt
+│   ├── main_spec.txt
+│   ├── message_spec.txt
+│   ├── msg_spec.txt
+│   ├── plugins_service_spec.txt
+│   ├── plugins_spec.txt
+│   └── state_spec.txt
+├── tests/
+│   ├── test_file_edit.py
+│   ├── test_tab_panel.py
+│   └── test_msg_panel.py
+└── AGENTS.md
+ 
+
+3. МЕНЮ EditorApp
+3.1. В главном меню EditorApp добавляем меню "File" с пунктами (создаётся в create_menu_bar):
+     - New — создаёт новую вкладку (tab_panel.new_tab)
+     - Open — открыть файл (tab_panel.open_file)
+     - Save — сохранить файл (tab_panel.current_tab_save)
+     - Save As — сохранить как (tab_panel.current_tab_save_as)
+     - Close — закрыть текущую вкладку (tab_panel.current_tab_close)
+     --- разделитель ---
+     - Reload — перезагрузить файл (tab_panel.current_tab_reload)
+     --- разделитель ---
+     - Property — свойства файла (tab_panel.current_tab_view_property)
+     --- разделитель ---
+     - Recent files > (editor_app.recent_files_menu)
+         динамический список последних открытых файлов (макс. 10)
+         -- или "No recent file" (disabled) если список пуст
+         --- разделитель ---
+         - Clear recent files (editor_app.action_clear_recent_files)
+3.2. В главном меню EditorApp добавляем меню "Settings" с пунктами:
+     - Zoom In — увеличить шрифт (editor_app.zoom_in)
+     - Zoom Out — уменьшить шрифт (editor_app.zoom_out)
+     --- разделитель ---
+     - Plugins — выбор подключаемых плагинов (open_plugin_settings)
+
+3. ТРЕБОВАНИЯ К КОДУ
+-----------------
+3.1. Добавляем #! /usr/bin/env python3 в начало файлов *.py.
+3.2. К классам и функциям добавляем описания.
+
+Дополнительные спецификации:
+- Основное техническое задание — см. main_spec.txt
+- Требования к функциональности EditorApp — см. editor_app_spec.txt
+- Требования к функциональности TabPanel — см. tab_panel_spec.txt
+- Требования к функциональности FileEditor — см. file_editor_spec.txt
+- Требования к функциональности ExtEditor — см. ext_editor_spec.txt
+- Требования к функциональности MsgPanel и ErrorHandler — см. msg_spec.txt
+- Требования к функциональности сообщений — см. message_spec.txt
+- Требования к функциональности загрузки плагинов (PluginManager) — см. plugins_service_spec.txt
+- Требования к функциональности плагинов — см. plugins_spec.txt
+- Требования к управлению настройками и состоянием сессии — см. state_spec.txt

@@ -1,0 +1,6 @@
+{
+    "name": "textprocessing",
+    "description": "Обработка текста в редакторе",
+    "entry": "main.py",
+    "class": "TextProcessingPlugin"
+}

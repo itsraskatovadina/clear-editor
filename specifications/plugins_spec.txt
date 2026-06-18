@@ -1,0 +1,35 @@
+5. ТРЕБОВАНИЯ К ФУНКЦИОНАЛЬНОСТИ ПЛАГИНОВ
+-----------------
+5.1. Плагин 'WordCount' — подсчёт слов в QTextEdit.
+   Декларация:
+     status_fields = {"word_count": {"label_template": "Word: {}",
+                                     "signal_name": "word_count_changed"}}
+   Сигнал: word_count_changed(int)
+    on_load(editor): получает EditorApp, подключается ко ВСЕМ вкладкам
+     editor.tab_panel (textChanged), подписывается на tab_added
+     (подключение к новым вкладкам) и currentChanged (пересчёт при
+     переключении), запускает подсчёт.
+   on_unload: отключается от всех textChanged, tab_added, currentChanged.
+
+5.2. Плагин 'TextProcessing' — обработка текста в редакторе текущей вкладки.
+    Плагин декларирует menu_items:
+      "Text": [
+        {"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
+        {"text": "Capitalize first letters", "callback": "capitalize_first_letters_in_selected"}
+      ]
+    В основном меню создаётся меню "Text" с указанными пунктами.
+
+    Методы:
+      selectedTextProcessing(func, **kwargs) — общий метод,
+        получает QTextCursor выделенного текста, заменяет "\u2029" на "\n",
+        применяет func к тексту, заменяет выделение результатом,
+        восстанавливает выделение обработанного блока.
+
+      remove_empty_lines_in_selected() — удаляет пустые строки
+        в выделенном блоке (строки, содержащие только пробелы).
+
+      capitalize_first_letters_in_selected() — делает заглавной
+        первую букву каждой строки в выделенном блоке.
+
+    on_load: сохраняет editor.tab_panel для доступа к текущему редактору.
+    on_unload: очищает ссылку.
