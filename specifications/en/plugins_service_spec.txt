@@ -1,5 +1,5 @@
 4. PLUGIN LOADING FUNCTIONALITY REQUIREMENTS
---------------------
+-----------------
 4.1. Each plugin has its own folder under plugins/ and a manifest file
 (manifest.json)
    {
@@ -17,14 +17,16 @@ Plugin Manager:
    - Activation -> on_load(editor), deactivation -> on_unload()
    - On activation creates UI elements (status bar, menu, toolbars, dock widgets)
      according to plugin declaration, on deactivation — removes them
+
 4.3. Base class for plugins
 (does not use ABCMeta)
 class PluginBase(QObject):
     name: str
     description: str
-    status_fields: dict[str, dict] = {}
-    menu_items: dict[str, list[dict]] = {}
+    actions: list[dict] = []
+    menu_items: list[dict] = []
     toolbar_items: list[dict] = []
+    status_fields: dict[str, dict] = {}
 
     def on_load(self, editor: QTextEdit):
         """Called when plugin is activated."""
@@ -44,12 +46,141 @@ class PluginBase(QObject):
 4.6. Between sessions, plugin configuration is saved using
    PyQt5 QSettings with QSettings.IniFormat, settings stored next to main.py.
 4.7. On application startup, all previously loaded plugins are activated.
-4.8. Plugins can affect EditorApp UI through declarations:
-    - status_fields — PluginManager creates QLabel in statusBar,
-      connects plugin signal to label text update
-    - menu_items — PluginManager creates QMenu/QAction in menuBar
-    - toolbar_items — PluginManager creates QToolBar
-    - create_dock_widget() — plugin returns QWidget,
-      PluginManager wraps it in QDockWidget and adds to EditorApp
-    On plugin deactivation, PluginManager removes all created elements.
-    EditorApp does not contain code dependent on specific plugins.
+
+4.8. Plugin UI declaration
+4.8.1. Plugins can affect EditorApp UI through class attributes:
+   - actions — flat list of actions (reusable QAction declarations)
+   - menu_items — nested list for building QMenu/QAction in menuBar
+   - toolbar_items — nested list for building QToolBar
+   - status_fields — PluginManager creates QLabel in statusBar,
+     connects plugin signal to label text update
+   - create_dock_widget() — plugin returns QWidget,
+     PluginManager wraps it in QDockWidget and adds to EditorApp
+   On plugin deactivation, PluginManager removes all created elements.
+   EditorApp does not contain code dependent on specific plugins.
+
+4.8.2. Action declaration keys: id, text, kind, callback, icon,
+   shortcut, statustip, tooltip.
+   Key content — only for 'kind': "menu" (if kind=menu and content
+   is absent, content is considered []).
+   Key "kind" can have values "action" | "menu" | "separator".
+   If kind:"action" has no callback — leave without callback.
+
+4.8.3. Actions indexing. For reuse, actions are grouped into
+   index_actions by id. The kind:"action" key is set during indexing:
+
+   index_actions = {}
+   for i in actions:
+       i["kind"] = "action"
+       index_actions[i['id']] = i
+
+4.8.4. Complete plugin declaration example
+
+class SamplePlugin(PluginBase):
+    name = "sample"
+    description = "Sample plugin"
+
+    actions = [
+        {'id': "replace_entity", 'text': "Replace entity"},
+        {'id': "wrap_p", 'text': "Wrap <p>",
+         'icon': 'icons/tagp.png', 'tooltip': "Wrap &lt;p&gt;",
+         'statustip': "Wrap selected <p>...</p>"},
+        {'id': "wrap_b", 'text': "Wrap <b>", 'icon': 'icons/tagb.png'},
+        {'id': "make_list", 'text': "ul", 'tooltip': "Make list"},
+        {'id': "remove_empty", 'text': "Remove empty lines",
+         'callback': "remove_empty_lines_in_selected"},
+        {'id': "capitalize_first", 'text': "Capitalize first letters",
+         'callback': "capitalize_first_letters_in_selected"},
+    ]
+
+    index_actions = {}
+    for i in actions:
+        i["kind"] = "action"
+        index_actions[i['id']] = i
+
+    menu_items = [{
+        'kind': "menu", 'text': "Text", 'content': [
+            index_actions['remove_empty'],
+            index_actions['capitalize_first'],
+        ]}, {
+        'kind': "menu", 'text': "HTML", 'content': [
+            index_actions['replace_entity'],
+            {'kind': "menu", 'text': "Wrap", 'content': [
+                index_actions['wrap_p'],
+                index_actions['wrap_b'],
+            ]},
+            {'kind': "separator"},
+            index_actions['make_list'],
+        ]},
+    ]
+
+    toolbar_items = [{
+        'kind': "menu", 'text': "HTML", 'content': [
+            index_actions['wrap_p'],
+            index_actions['wrap_b'],
+            index_actions['make_list'],
+        ]},
+    ]
+
+    def on_load(self, editor):
+        self._panel = editor.tab_panel
+
+    def on_unload(self):
+        self._panel = None
+
+    def remove_empty_lines_in_selected(self):
+        ...
+
+    def capitalize_first_letters_in_selected(self):
+        ...
+
+    def replace_entity(self):
+        ...
+
+4.9. PluginManager — _setup_ui helper methods
+
+4.9.1. Creating a standalone QAction (extracted into a separate function):
+   - create_action(self, menu, text, callback,
+        icon=None, shortcut=None, statustip=None, tooltip=None)
+      — creates QAction, connects callback (if given), sets optional
+        attributes. Returns QAction.
+
+4.9.2. Building menu/toolbar from a nested list (recursively,
+   works for both menu_items and toolbar_items):
+   - create_ui_from_actions(self, target, actions, plugin)
+      — recursively builds UI from a nested list.
+      - kind='menu': creates submenu (for QMenu) or inlines content
+        (for QToolBar, which lacks addMenu)
+      - kind='separator': addSeparator()
+      - kind='action': create_action(), callback resolved via getattr(plugin, ...)
+      - Returns a list of (type, object) tuples for cleanup.
+
+4.9.3. create_ui_from_actions is used for both menu_items (QMenu)
+   and toolbar_items (QToolBar, via menu=QToolBar, since QToolBar
+   has addAction/addMenu/addSeparator). Toolbar with separator is
+   expected behavior.
+
+4.9.4. _setup_ui rewritten:
+      - status_fields: unchanged
+      - menu_items: iterates entries, for kind='menu' finds/creates QMenu,
+        calls create_ui_from_actions
+      - toolbar_items: creates QToolBar, for kind='menu' calls
+        create_ui_from_actions (flat insertion, addMenu not needed)
+      - create_dock_widget: unchanged
+      - ui_state["menu_ui_objects"] stores (type, object) tuples instead
+        of the previous QAction list — allows proper cleanup of
+        both QActions and QMenu (submenus)
+   - deactivate updated:
+      - menu_ui_objects: iterates (kind, obj), obj.deleteLater()
+      - Everything else unchanged
+
+4.9.5. Implementation notes:
+ 	- create_ui_from_actions accepts plugin for callback resolution
+ 	  by name (getattr). This allows storing string method names
+ 	  in actions and maintains a single mechanism.
+ 	- For QToolBar, kind='menu' does not create a submenu (addMenu
+ 	  is absent), but recursively inlines the content. This matches
+ 	  the spec.
+ 	- In deactivate, the toolbar is removed entirely (removeToolBar
+ 	  + deleteLater), so QActions created for the toolbar do not
+ 	  need separate tracking — they are deleted with the toolbar.
