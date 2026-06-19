@@ -1,0 +1,55 @@
+4. PLUGIN LOADING FUNCTIONALITY REQUIREMENTS
+--------------------
+4.1. Each plugin has its own folder under plugins/ and a manifest file
+(manifest.json)
+   {
+       "name": "wordcount",
+       "description": "Word count in editor",
+       "entry": "main.py",
+       "class": "WordCountPlugin"
+   }
+4.2. Plugin discovery is done by reading manifests
+Plugin Manager:
+   - Scans plugins/
+   - Reads manifest.json in each subfolder
+   - Dynamically imports the module (importlib)
+   - Returns plugin list to PluginWidget (QListView)
+   - Activation -> on_load(editor), deactivation -> on_unload()
+   - On activation creates UI elements (status bar, menu, toolbars, dock widgets)
+     according to plugin declaration, on deactivation — removes them
+4.3. Base class for plugins
+(does not use ABCMeta)
+class PluginBase(QObject):
+    name: str
+    description: str
+    status_fields: dict[str, dict] = {}
+    menu_items: dict[str, list[dict]] = {}
+    toolbar_items: list[dict] = []
+
+    def on_load(self, editor: QTextEdit):
+        """Called when plugin is activated."""
+
+    def on_unload(self):
+        """Called when plugin is deactivated."""
+
+    def create_dock_widget(self, parent=None) -> QWidget | None:
+        """Returns a widget for placement in EditorApp dock panel."""
+        return None
+
+4.4. Plugin selection — QListView with checkboxes
+   (QStandardItemModel, item.setCheckable(True)), separate window,
+   opened from Settings menu.
+   Checked plugins will be loaded after pressing OK.
+4.5. User can enable and disable any number of plugins.
+4.6. Between sessions, plugin configuration is saved using
+   PyQt5 QSettings with QSettings.IniFormat, settings stored next to main.py.
+4.7. On application startup, all previously loaded plugins are activated.
+4.8. Plugins can affect EditorApp UI through declarations:
+    - status_fields — PluginManager creates QLabel in statusBar,
+      connects plugin signal to label text update
+    - menu_items — PluginManager creates QMenu/QAction in menuBar
+    - toolbar_items — PluginManager creates QToolBar
+    - create_dock_widget() — plugin returns QWidget,
+      PluginManager wraps it in QDockWidget and adds to EditorApp
+    On plugin deactivation, PluginManager removes all created elements.
+    EditorApp does not contain code dependent on specific plugins.

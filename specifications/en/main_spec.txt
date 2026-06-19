@@ -1,0 +1,109 @@
+TECHNICAL SPECIFICATION
+(specifications/en/main_spec.txt)
+
+Project: ClearEditor — desktop text editor on PyQt5 with dynamic plugin loading
+DEPENDENCIES: Python 3.x, PyQt5
+
+1. GENERAL DESCRIPTION
+---------------------
+1.1. Application name — ClearEditor, development purpose — educational material.
+1.2. ClearEditor (class EditorApp, file core/editor_app.py) — PyQt5 desktop application,
+     wrapper around QSplitter(Vertical) with two panels:
+     TabPanel (top) and MsgPanel (bottom), placed in QMainWindow. Size ratio 500:100.
+     TabPanel — QTabWidget, each tab contains a FileEditor with ExtEditor.
+     MsgPanel — QTabWidget with Err and Msg tabs.
+1.3. ClearEditor can dynamically load plugins placed in the plugins folder via plugin_manager.
+1.4. Supports session state persistence between launches using PyQt5 QSettings with
+     QSettings.IniFormat, settings file settings.ini stored in the working directory.
+     Static application configuration is stored in config.json in the working directory.
+
+1.5. Qt classes:
+     - EditorApp(QMainWindow) — root component of ClearEditor, PyQt5 desktop application,
+       wrapper around QSplitter(Vertical) with two panels: TabPanel (top) and MsgPanel (bottom).
+     - TabPanel — QTabWidget, multi-document editor window in EditorApp, each tab contains FileEditor;
+     - MsgPanel;
+     - FileEditor — QWidget, wrapper around QTextEdit (or its subclass such as ExtEditor),
+       performs file operations for a single document: open, save, detect external changes;
+     - ExtEditor — extension of QTextEdit;
+     - PluginManager — manages plugin loading;
+
+2. PROJECT STRUCTURE
+---------------------
+
+project_extension/
+├── config.json
+├── settings.ini
+├── core/
+│   ├── __init__.py
+│   ├── editor_app.py
+│   ├── tab_panel.py
+│   ├── ext_editor.py
+│   ├── file_editor.py
+│   └── msg_panel.py
+├── docs/
+│   └── class_diagram.mmd
+├── icons/
+│   ├── clear.svg
+│   └── clear_test.jpg
+├── main.py
+├── plugins/
+│   ├── textprocessing/
+│   │   ├── manifest.json
+│   │   └── main.py
+│   └── wordcount/
+│       ├── manifest.json
+│       └── main.py
+├── plugins_service/
+│   ├── __init__.py
+│   ├── plugin_base.py
+│   ├── plugin_manager.py
+│   └── plugin_widget.py
+├── specifications/
+│   ├── en/
+│   └── ru/
+├── tests/
+│   ├── test_file_edit.py
+│   ├── test_tab_panel.py
+│   └── test_msg_panel.py
+├── AGENTS.md
+└── requirements.txt
+
+
+3. EditorApp MENU
+3.1. Main EditorApp menu — "File" with items (created in create_menu_bar):
+     - New — creates new tab (tab_panel.new_tab)
+     - Open — open file (tab_panel.open_file)
+     - Save — save file (tab_panel.current_tab_save)
+     - Save As — save as (tab_panel.current_tab_save_as)
+     - Close — close current tab (tab_panel.current_tab_close)
+     --- separator ---
+     - Reload — reload file (tab_panel.current_tab_reload)
+     --- separator ---
+     - Property — file properties (tab_panel.current_tab_view_property)
+     --- separator ---
+     - Recent files > (editor_app.recent_files_menu)
+         dynamic list of recently opened files (max 10)
+         -- or "No recent file" (disabled) if list is empty
+         --- separator ---
+         - Clear recent files (editor_app.action_clear_recent_files)
+3.2. Main EditorApp menu — "Settings" with items:
+     - Zoom In — increase font (editor_app.zoom_in)
+     - Zoom Out — decrease font (editor_app.zoom_out)
+     --- separator ---
+     - Plugins — plugin selection (open_plugin_settings)
+
+3. CODE REQUIREMENTS
+---------------------
+3.1. Add #! /usr/bin/env python3 at the beginning of all *.py files.
+
+Additional specifications:
+- Main technical specification — see main_spec.txt
+- EditorApp functionality requirements — see editor_app_spec.txt
+- TabPanel functionality requirements — see tab_panel_spec.txt
+- FileEditor functionality requirements — see file_editor_spec.txt
+- ExtEditor functionality requirements — see ext_editor_spec.txt
+- MsgPanel and ErrorHandler functionality requirements — see msg_spec.txt
+- Message functionality requirements — see message_spec.txt
+- Plugin loading (PluginManager) functionality requirements — see plugins_service_spec.txt
+- Plugin functionality requirements — see plugins_spec.txt
+- Settings and session state management requirements — see state_spec.txt

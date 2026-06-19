@@ -67,4 +67,4 @@
    - Меню File: Open, Save, Save As.
    - Статусная строка: номер строки (Label "Line: N").
    - Подключение сигналов: line_changed, user_modification_changed.
-   - Отображение окна с иконкой icons/clear1.jpg.
+   - Отображение окна с иконкой icons/clear_test.jpg.

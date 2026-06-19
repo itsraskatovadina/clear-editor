@@ -105,5 +105,5 @@
    - Статусная строка: номер строки (Label "Line: N"), showMessage на операции.
    - Подключение сигналов: editor_state_changed, line_changed, message.
    - closeEvent → tab_panel.close_all_tab().
-   - Отображение окна с иконкой icons/clear1.jpg.
+   - Отображение окна с иконкой icons/clear_test.jpg.
    - Тест set_files(): создание нескольких вкладок из списка путей.

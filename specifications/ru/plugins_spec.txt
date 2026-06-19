@@ -10,8 +10,9 @@
      (подключение к новым вкладкам) и currentChanged (пересчёт при
      переключении), запускает подсчёт.
    on_unload: отключается от всех textChanged, tab_added, currentChanged.
-
-5.2. Плагин 'TextProcessing' — обработка текста в редакторе текущей вкладки.
+ 
+5.2. 
+    Плагин 'TextProcessing' — обработка текста в редакторе текущей вкладки.
     Плагин декларирует menu_items:
       "Text": [
         {"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
@@ -33,3 +34,4 @@
 
     on_load: сохраняет editor.tab_panel для доступа к текущему редактору.
     on_unload: очищает ссылку.
+ 

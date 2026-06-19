@@ -1,0 +1,35 @@
+5. PLUGIN FUNCTIONALITY REQUIREMENTS
+--------------------
+5.1. 'WordCount' plugin — word count in QTextEdit.
+   Declaration:
+     status_fields = {"word_count": {"label_template": "Word: {}",
+                                     "signal_name": "word_count_changed"}}
+   Signal: word_count_changed(int)
+    on_load(editor): receives EditorApp, connects to ALL tabs
+     editor.tab_panel (textChanged), subscribes to tab_added
+     (connecting to new tabs) and currentChanged (recount on
+     tab switch), triggers initial count.
+   on_unload: disconnects from all textChanged, tab_added, currentChanged.
+
+5.2. 'TextProcessing' plugin — text processing in current tab editor.
+    Plugin declares menu_items:
+      "Text": [
+        {"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
+        {"text": "Capitalize first letters", "callback": "capitalize_first_letters_in_selected"}
+      ]
+    A "Text" menu is created in the main menu with the specified items.
+
+    Methods:
+      selectedTextProcessing(func, **kwargs) — common method,
+        gets QTextCursor of selected text, replaces "\u2029" with "\n",
+        applies func to text, replaces selection with result,
+        restores selection of the processed block.
+
+      remove_empty_lines_in_selected() — removes empty lines
+        in selected block (lines containing only whitespace).
+
+      capitalize_first_letters_in_selected() — capitalizes
+        the first letter of each line in the selected block.
+
+    on_load: saves editor.tab_panel for accessing current editor.
+    on_unload: clears reference.

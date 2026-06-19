@@ -1,0 +1,78 @@
+MESSAGE MECHANISM
+(specifications/en/message_spec.txt)
+
+1. PURPOSE
+-------------
+Provide message passing from editors (FileEditor) to the message panel (MsgPanel)
+through a signal chain: FileEditor → TabPanel → EditorApp → MsgPanel,
+as well as system error handling (stderr) via ErrorHandler.
+
+2. SIGNALS
+----------
+2.1. FileEditor.message = pyqtSignal(str, str, str)
+     Parameters: (message_text, sender, message_type)
+     message_type: 'debug' | 'info' | 'warning' | 'error'
+
+2.2. TabPanel.message = pyqtSignal(str, str, str)
+     Parameters: (message_text, sender, message_type)
+
+2.3. MsgPanel.new_error = pyqtSignal(str)
+     Parameter: (message_text) — for critical errors from stderr
+
+3. MESSAGE ROUTE
+--------------------
+FileEditor.message
+  → TabPanel.on_message (editor.message.connect)
+  → TabPanel.message.emit
+  → EditorApp.on_message (tab_panel.message.connect)
+  → MsgPanel.new_message(msg, sender, msgtype)
+
+stderr error route:
+sys.stderr → ErrorHandler.write → EditorApp.on_error → MsgPanel.new_error.emit → MsgPanel._display_error
+
+4. MSGPANEL HANDLING
+-----------------------
+4.1. MsgPanel.new_message(msg, sender=None, msgtype=None)
+     - Color depends on msgtype: 'debug' → gray, 'info' → blue, 'warning' → orange, 'error' → red
+     - If sender is provided, prepends '[sender] ' prefix
+     - If msgtype='error', message is shown on Err tab, otherwise on Msg tab
+     - Switches visible tab to Err or Msg and plays a beep
+
+4.2. MsgPanel.new_error (signal) → _display_error
+     - Displays message on Err tab in red
+     - Switches to Err tab and plays a beep
+
+5. HELPER CLASSES
+-------------------
+5.1. ErrorHandler(handle)
+     - Replacement for sys.stderr: redirects stderr to handle (EditorApp.on_error)
+     - Simultaneously writes to original stderr
+     - Methods: write(message), flush()
+
+5.2. EditorApp.on_error(self, msg)
+     - Calls self.msg_panel.new_error.emit(msg)
+
+6. ISSUES
+----------
+1. [FIXED] MsgPanel.new_message uses msgtype to select color:
+   'debug' → gray, 'info' → blue, 'warning' → orange, 'error' → red.
+   sender displayed as '[sender] ' prefix.
+
+2. MsgPanel.new_error(msg) — only uncaught errors are displayed.
+
+3. [FIXED] MsgPanel.new_message filters and formats output
+   by msgtype (colors and sender prefix).
+
+4. MsgPanel.new_message ALWAYS outputs to msg_box, regardless of msgtype.
+   Redirection to err_box is not implemented.
+
+5. ErrorHandler.write(message) is called for each line of stderr output —
+   handle may be called with empty strings and partial buffers.
+   Possibly should add line buffering.
+
+6. stderr restoration happens after app.exec_() — if an exception occurs
+   in the EventLoop during application runtime, original_stderr
+   may not be restored.
+
+7. ErrorHandler is not thread-safe — with multi-threaded stderr
+   output, race conditions are possible.

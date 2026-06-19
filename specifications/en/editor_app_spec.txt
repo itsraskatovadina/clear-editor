@@ -1,0 +1,152 @@
+EditorApp FUNCTIONALITY REQUIREMENTS
+(specifications/en/editor_app_spec.txt)
+
+Main application window, root component of ClearEditor.
+
+1. EditorApp(QMainWindow) — PyQt5 desktop application, wrapper around
+   QSplitter(Vertical) with two panels: TabPanel (top) and MsgPanel (bottom),
+   placed inside QMainWindow. Size ratio 500:100.
+   TabPanel — QTabWidget, each tab contains a FileEditor with ExtEditor.
+   MsgPanel — QTabWidget with Err and Msg tabs.
+   Contains QStatusBar with a permanent QLabel for the line number.
+
+2. CLASS ATTRIBUTES
+   - win_title = "Text Editor" — default window title.
+   - recent_files_changed = pyqtSignal() — signal emitted when the recent
+     files list changes.
+
+3. INSTANCE ATTRIBUTES
+   - config: dict | None — loaded JSON from config.json.
+   - settings: QSettings | None — QSettings("settings.ini", QSettings.IniFormat).
+   - tab_panel: TabPanel — tab panel (top part).
+   - msg_panel: MsgPanel — message panel (bottom part).
+   - splitter: QSplitter — vertical splitter containing tab_panel and msg_panel.
+   - statusBar: QStatusBar — status bar.
+   - line_label: QLabel — permanent widget in statusBar showing the line number.
+   - recent_files: list[str] — list of recently opened files (max 10).
+
+4. CONSTRUCTOR
+   def __init__(self):
+   - Sets window title.
+   - Sets window icon icons/clear.svg.
+   - Initializes recent_files = [].
+   - Creates TabPanel(parent=self, editor_class=ExtEditor).
+   - Creates MsgPanel(parent=self).
+   - Connects signals:
+       tab_panel.message → self.on_message
+       tab_panel.editor_state_changed → self.on_editor_state_changed
+   - Creates QSplitter(Qt.Vertical), adds tab_panel and msg_panel,
+     sets sizes [500, 100], assigns as central widget.
+   - Creates QStatusBar, sets as window status bar.
+   - Creates QLabel (line_label), adds as permanent widget to status bar.
+   - Connects tab_panel.line_changed → line_label text update.
+
+5. CONFIGURATION LOADING
+   def load_config(self):
+   - Reads config.json (json.load) from the current working directory.
+   - If config.json is missing → raise ConfigError("Отсутствует файл конфигурации config.json")
+   - If JSON is malformed → raise ConfigError("Ошибка парсинга config.json: ...")
+   - Creates self.settings = QSettings("settings.ini", QSettings.IniFormat)
+   - Restores window geometry:
+       pos = settings.value("geometry/pos")
+       if None: pos = QPoint(*config["ui_defaults"]["geometry/pos"])
+       size = settings.value("geometry/size")
+       if None: size = QSize(*config["ui_defaults"]["geometry/size"])
+       self.move(pos); self.resize(size)
+   - Restores font_size (settings.value("font_size", 12)), sets QFont.
+   - Restores recent_files via beginReadArray("recent_files").
+
+6. TAB RESTORATION
+   def set_tab_panel(self):
+   - Reads file list from settings via beginReadArray("open_files").
+   - If the list is not empty — calls tab_panel.set_files(file_list).
+   - If after set_files tab_panel.count() == 0 — calls tab_panel.new_tab().
+
+7. SHUTDOWN
+   def closeEvent(self, event):
+   - Saves to settings: geometry/pos, geometry/size, font_size.
+   - Saves open_files via beginWriteArray("open_files") from tab_panel.get_open_files().
+   - Saves recent_files via beginWriteArray("recent_files").
+   - Calls settings.sync().
+   - event.accept().
+
+8. FONT MANAGEMENT (ZOOM)
+   def zoom_in(self):
+   - Increases current font pointSize by 1.
+   def zoom_out(self):
+   - Decreases current font pointSize by 1 (minimum 6 pt).
+
+9. RECENT FILES
+   def add_recent_file(self, path):
+   - If path is already in recent_files — removes old entry.
+   - Inserts path at the beginning of the list.
+   - Truncates list to 10 items.
+
+   def action_open_recent_file(self):
+   - Gets sender (action) via self.sender().
+   - Extracts path from action.data().
+   - Calls self.tab_panel.add_tab(Path(full_path)).
+
+   def action_clear_recent_files(self):
+   - Clears self.recent_files = [].
+   - Emits recent_files_changed.
+
+10. EDITOR ACCESS
+    def current_editor(self) -> QTextEdit:
+    - Delegates to tab_panel.current_editor().
+
+11. SIGNAL HANDLERS
+    def on_message(self, msg, sender, msgtype):
+    - Forwards message to msg_panel.new_message(msg, sender, msgtype).
+    def on_error(self, msg):
+    - Emits msg_panel.new_error.emit(msg).
+    def on_editor_state_changed(self, name, fname, mod_label, operation):
+    - Updates window title (format: "{mod_label}{fname} - {win_title}").
+    - For 'Opened', 'Saved', 'Saved as', 'Reload' operations — shows
+      temporary status bar message (2000 ms).
+    - For 'Opened', 'Saved as', 'Reload' — calls add_recent_file(fname)
+      and emits recent_files_changed.
+
+12. INTERACTION WITH MAIN.PY
+    - editor_app = EditorApp()
+    - editor_app.load_config() (with ConfigError handling)
+    - editor_app.set_tab_panel() — restore tabs
+    - editor_app.settings passed to PluginManager and other components.
+    - editor_app.tab_panel.on_app_focus_changed connected to app.focusChanged.
+    - editor_app.on_error used by ErrorHandler(sys.stderr).
+    - menu_bar = editor_app.menuBar(); create_menu_bar(menu_bar) — creates File menu.
+    - editor_app.recent_files_changed.connect(update_recent_files_menu) —
+      updates Recent files submenu when the list changes.
+    - Settings menu created separately after plugin loading.
+
+13. MENU REQUIREMENTS (implemented in main.py, but specified here)
+   13.1. File menu (created in create_menu_bar):
+        - New — tab_panel.new_tab
+        - Open — tab_panel.open_file
+        - Save — tab_panel.current_tab_save
+        - Save As — tab_panel.current_tab_save_as
+        - Close — tab_panel.current_tab_close
+        --- separator ---
+        - Reload — tab_panel.current_tab_reload
+        --- separator ---
+        - Property — tab_panel.current_tab_view_property
+        --- separator ---
+        - Recent files > (editor_app.recent_files_menu)
+            dynamic list, updated via update_recent_files_menu
+   13.2. Settings menu:
+        - Zoom In — editor_app.zoom_in
+        - Zoom Out — editor_app.zoom_out
+        --- separator ---
+        - Plugins — open_plugin_settings (PluginWidget dialog)
+
+14. TEST DEVELOPMENT TASK
+    Develop a script tests/test_editor_app.py for visual testing of EditorApp:
+    - QApplication and EditorApp as main window.
+    - Configuration loading (load_config) with a valid config.json.
+    - Verification of TabPanel, MsgPanel, QSplitter, QStatusBar creation.
+    - Verification of zoom_in/zoom_out (font change).
+    - Verification of closeEvent (settings save).
+    - Verification of add_recent_file, action_clear_recent_files.
+    - Verification of set_tab_panel (restore open_files from settings).
+    - Signal connections: editor_state_changed, line_changed, message, recent_files_changed.
+    - Window display with icons/clear_test.jpg icon.

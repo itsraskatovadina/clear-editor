@@ -1,0 +1,82 @@
+MsgPanel AND ErrorHandler FUNCTIONALITY REQUIREMENTS
+(specifications/en/msg_spec.txt)
+
+Message panel and stderr interceptor.
+
+1. MsgPanel(QTabWidget) — message panel in the bottom part of EditorApp.
+   Contains two tabs: Err (errors) and Msg (messages).
+   Tabs are positioned on the left (QTabWidget.West).
+   Both text fields are read-only (setReadOnly(True)).
+   Includes scroll buttons (setUsesScrollButtons(True)).
+   On startup, Err tab is active (setCurrentIndex(0)).
+
+2. SIGNALS
+   - new_error = pyqtSignal(str) — for critical errors from stderr.
+
+3. INSTANCE ATTRIBUTES
+   - err_box: QTextEdit — text field for errors ("Err" tab).
+   - msg_box: QTextEdit — text field for messages ("Msg" tab).
+   - app: QApplication — reference to application instance (for sound beep).
+
+4. CONSTRUCTOR
+   def __init__(self, parent=None):
+   - Creates err_box and msg_box (QTextEdit, read-only).
+   - Adds tabs: addTab(err_box, "Err"), addTab(msg_box, "Msg").
+   - setTabPosition(QTabWidget.West).
+   - setUsesScrollButtons(True).
+   - setCurrentIndex(0) — Err tab active.
+   - Gets self.app = QApplication.instance().
+   - Connects signal: new_error → self._display_error.
+
+5. METHODS
+
+   5.1. Critical error display (from stderr):
+        def _display_error(self, msg):
+        - Adds red text to err_box (HTML <span style='color: red;'>).
+        - Switches visible tab to err_box.
+        - Plays a beep (self.app.beep()).
+
+   5.2. Message display:
+        def new_message(self, msg, sender=None, msgtype=None):
+        - Color depends on msgtype:
+            'debug' → gray, 'info' → blue, 'warning' → orange, 'error' → red.
+          Default (msgtype=None) — blue.
+        - If sender is provided, prepends '[sender] ' prefix.
+        - Outputs message to msg_box as HTML string.
+        - Switches visible tab to msg_box.
+        - Plays a beep (self.app.beep()).
+
+6. ErrorHandler — replacement for sys.stderr for redirecting errors
+   to EditorApp.on_error. Duck-typed as file object (write/flush).
+
+   INSTANCE ATTRIBUTES
+   - original_stderr: TextIO — original sys.stderr.
+   - handle: callable — callback function (EditorApp.on_error).
+
+   METHODS
+   def __init__(self, handle):
+   - Saves sys.stderr to self.original_stderr.
+   - Saves handle (EditorApp.on_error).
+
+   def write(self, message):
+   - Writes to original_stderr.
+   - Calls handle(message).
+
+   def flush(self):
+   - Calls original_stderr.flush().
+
+7. MESSAGE CHAIN
+   FileEditor.message → TabPanel (forward) → EditorApp.on_message
+     → MsgPanel.new_message(msg, sender, msgtype)
+   sys.stderr → ErrorHandler.write → EditorApp.on_error
+     → MsgPanel.new_error.emit → MsgPanel._display_error
+
+8. TEST DEVELOPMENT TASK (test_msg_panel.py)
+   Develop a script tests/test_msg_panel.py for visual testing of MsgPanel:
+   - QMainWindow with MsgPanel as central widget.
+   - Buttons or menu for sending test messages of different types
+     (debug, info, warning, error).
+   - Button for testing new_error (stderr simulation).
+   - Verification of tab switching for different message types.
+   - Verification of text color for each msgtype.
+   - Window display with icons/clear_test.jpg icon.

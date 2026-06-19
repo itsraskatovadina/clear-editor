@@ -149,4 +149,4 @@
     - Проверка add_recent_file, action_clear_recent_files.
     - Проверка set_tab_panel (восстановление open_files из settings).
     - Подключение сигналов: editor_state_changed, line_changed, message, recent_files_changed.
-    - Отображение окна с иконкой icons/clear1.jpg.
+    - Отображение окна с иконкой icons/clear_test.jpg.

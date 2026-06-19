@@ -1,0 +1,117 @@
+TECHNICAL SPECIFICATION
+(specifications/en/state_spec.txt)
+
+Settings and session state management
+
+1.1 The application must support separate storage:
+    - Static configuration (not changed by the application, edited by developer) in config.json;
+    - Dynamic session state (changed by user, persisted between launches) in settings.ini.
+    Both configuration files are located in the current working directory.
+
+    - EditorApp in init loads config and settings into its instance attributes;
+      main receives them and works with them.
+    - The rule "If settings.ini does not have a key — use value from config.json" is not applied
+      to all keys.
+      For example, settings.value("geometry/pos", QPoint(100, 100))) and
+      settings.value("geometry/size", QSize(1200, 800))) will be taken from config.json["ui_defaults"],
+      active_plugins has no default — user activates them manually.
+
+2. Static configuration (config.json)
+2.1. Format and location
+    Format: JSON (UTF-8 without BOM);
+    File name: config.json;
+    Location: current working directory.
+
+2.3. Rules
+    File is read-only from the application side (application must not modify it).
+    If config.json is missing, the application must exit with a critical error and notify the user.
+    If JSON is malformed (parse error) — display error and exit.
+
+2.4 Contents of config.json:
+    path to plugins/ (_plugins_dir)
+
+3. Dynamic session state (settings.ini)
+3.1. Format and location
+    Format: INI via QSettings with QSettings.IniFormat
+    File name: settings.ini
+    Location: current working directory
+    Encoding: UTF-8
+
+3.2. Rules
+    On first launch, the file is created automatically via QSettings.
+    EditorApp must save state in closeEvent() of the main window.
+    If INI file is corrupted — create a new one with default settings (from config.json).
+    Data types must be explicitly restored when reading.
+
+3.3 Contents of settings.ini:
+    [General]
+    active_plugins=wordcount, textprocessing
+
+    [open_files] — beginWriteArray/beginReadArray
+    1\f=path/to/file1.txt
+    2\f=path/to/file2.txt
+
+    [recent_files] — beginWriteArray/beginReadArray
+    1\f=path/to/file1.txt
+    2\f=path/to/file2.txt
+
+4. Interaction and priorities
+4.1. settings.ini missing: Create automatically, fill with defaults from config.json["ui_defaults"]
+4.2. settings.ini corrupted: Recreate, warn the user
+4.3. Key missing in settings.ini: Use value from config.json["ui_defaults"]
+4.4. Priority on duplicate: Session (settings.ini) overrides static (config.json)
+
+5. LOADING ARCHITECTURE (implemented)
+5.1. EditorApp.__init__ creates the window, does NOT load configs.
+5.2. Loading is in a separate method EditorApp.load_config():
+     - Reads config.json (json.load)
+     - If file is missing or malformed → raise ConfigError("...")
+     - Creates self.settings = QSettings("settings.ini", QSettings.IniFormat)
+     - Restores window geometry:
+         pos = self.settings.value("geometry/pos")
+         if not pos: pos = QPoint(*self.config["ui_defaults"]["geometry/pos"])
+         size = self.settings.value("geometry/size")
+         if not size: size = QSize(*self.config["ui_defaults"]["geometry/size"])
+         self.move(pos); self.resize(size)
+     - Restores font_size, recent_files (beginReadArray)
+5.3. EditorApp.closeEvent() — saves session state:
+     - geometry/pos, geometry/size, font_size
+     - open_files (beginWriteArray from tab_panel.get_open_files())
+     - recent_files (beginWriteArray)
+     - settings.sync()
+     event.accept()
+
+6. INTERACTION WITH MAIN.PY
+6.1. editor_app = EditorApp()
+6.2. try: editor_app.load_config()
+     except ConfigError as e:
+         print(e)
+         sys.exit(1)
+6.3. editor_app.set_tab_panel() — restore open tabs
+6.4. settings = editor_app.settings (main uses this object)
+6.5. plugin_manager = PluginManager(editor_app, plugins_dir=...)
+6.6. active_plugins has no default from config.json — user activates manually
+
+7. CONFIGURATION FILE STRUCTURE
+7.1. config.json (created manually):
+     {
+         "plugins_dir": "plugins",
+         "ui_defaults": {
+             "geometry/pos": [200, 150],
+             "geometry/size": [1500, 900]
+         }
+     }
+     - geometry/pos and geometry/size stored as arrays [x, y] / [w, h]
+     - Converted to QPoint/QSize in code when reading
+7.2. settings.ini (created automatically by QSettings):
+     [General]
+     active_plugins=textprocessing
+
+     [open_files]
+     size=2
+     1\f=path/to/file1.txt
+     2\f=path/to/file2.txt
+
+     [recent_files]
+     size=1
+     1\f=path/to/file1.txt
