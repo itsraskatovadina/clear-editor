@@ -9,10 +9,10 @@ from PyQt5.QtWidgets import QWidget
 class PluginBase(QObject):
 	name: str = ""
 	description: str = ""
-
-	status_fields: Dict[str, dict] = {}
-	menu_items: Dict[str, List[dict]] = {}
+	actions: List[dict] = []
+	menu_items: List[dict] = []
 	toolbar_items: List[dict] = []
+	status_fields: Dict[str, dict] = {}
 
 	def on_load(self, editor):
 		pass

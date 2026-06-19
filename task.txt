@@ -1,0 +1,1 @@
+реализуй plugins_service_spec, комментарии - в файл report.txt

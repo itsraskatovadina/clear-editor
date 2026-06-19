@@ -9,13 +9,41 @@ class TextProcessingPlugin(PluginBase):
 	name = "textprocessing"
 	description = "Обработка текста в редакторе"
 
-	menu_items = {
-		"Text": [
-			{"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
-			{"text": "Capitalize first letters", "callback": "capitalize_first_letters_in_selected"},
-		]
-	}
+	actions = [
+		{'id': "remove_empty", 'text': "Remove empty lines",
+		 'callback': "remove_empty_lines_in_selected"},
+		{'id': "capitalize_first", 'text': "Capitalize first letters",
+		 'callback': "capitalize_first_letters_in_selected"},
+	]
 
+	index_actions = {}
+	for i in actions:
+		i["kind"] = "action"
+		index_actions[i['id']] = i
+	'''
+	menu_items = [{
+		'kind': "menu", 'text': "Text", 'content': [
+			index_actions['remove_empty'],
+			index_actions['capitalize_first'],
+		]},
+	]
+	'''
+	menu_items = [
+		{'kind': "menu", 'text': "Text", 'content': [
+			index_actions['remove_empty'],
+			{'kind': "separator"},
+			{'kind': "menu", 'text': "Ext", 'content': [index_actions['capitalize_first']]}
+			]  
+		}]
+
+	toolbar_items = [
+		{'kind': "menu", 'text': "Text", 'content': [
+			index_actions['remove_empty'],
+			{'kind': "separator"},
+			{'kind': "menu", 'text': "Ext", 'content': [index_actions['capitalize_first']]}
+			]  
+		}]
+		
 	def on_load(self, editor):
 		self._panel = editor.tab_panel
 

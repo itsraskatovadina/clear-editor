@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 from PyQt5.QtCore import Qt, QObject
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QAction, QDockWidget, QLabel, QMenu, QToolBar
 
 from plugins_service.plugin_base import PluginBase
@@ -71,8 +72,55 @@ class PluginManager(QObject):
 		self._setup_ui(name, plugin, editor)
 		return plugin
 
+	def create_action(self, menu, text, callback,
+			icon=None, shortcut=None, statustip=None, tooltip=None):
+		action = menu.addAction(text)
+		if callback:
+			action.triggered.connect(callback)
+		if icon:
+			action.setIcon(QIcon(icon))
+		if shortcut:
+			action.setShortcut(shortcut)
+		if statustip:
+			action.setStatusTip(statustip)
+		if tooltip:
+			action.setToolTip(tooltip)
+		return action
+
+	def create_ui_from_actions(self, target, actions, plugin):
+		created = []
+		for entry in actions:
+			kind = entry['kind']
+			if kind == 'menu':
+				if hasattr(target, 'addMenu'):
+					submenu = target.addMenu(entry['text'])
+					created.append(('menu', submenu))
+				else:
+					submenu = target
+				if entry.get('content') is not None:
+					created.extend(
+						self.create_ui_from_actions(submenu, entry['content'], plugin))
+			elif kind == 'separator':
+				target.addSeparator()
+			else:
+				cb = None
+				if entry.get('callback'):
+					cb = getattr(plugin, entry['callback'])
+				act = self.create_action(target, entry['text'], cb,
+					icon=entry.get('icon'),
+					shortcut=entry.get('shortcut'),
+					statustip=entry.get('statustip'),
+					tooltip=entry.get('tooltip'))
+				created.append(('action', act))
+		return created
+
 	def _setup_ui(self, name: str, plugin: PluginBase, editor):
-		ui_state = {"labels": [], "menu_actions": [], "toolbars": [], "docks": []}
+		ui_state = {
+			"labels": [],
+			"menu_ui_objects": [],
+			"toolbars": [],
+			"docks": [],
+		}
 
 		for fid, field in plugin.status_fields.items():
 			label = QLabel(parent=editor.statusBar)
@@ -84,22 +132,25 @@ class PluginManager(QObject):
 			)
 			ui_state["labels"].append(label)
 
-		for menu_name, items in plugin.menu_items.items():
-			menu = editor.menuBar().findChild(QMenu, menu_name)
-			if not menu:
-				menu = editor.menuBar().addMenu(menu_name)
-				menu.setObjectName(menu_name)
-			for item in items:
-				action = menu.addAction(item["text"])
-				action.triggered.connect(getattr(plugin, item["callback"]))
-				ui_state["menu_actions"].append(action)
+		for entry in plugin.menu_items:
+			if entry.get('kind') == 'menu':
+				menu = editor.menuBar().findChild(QMenu, entry['text'])
+				if not menu:
+					menu = editor.menuBar().addMenu(entry['text'])
+					menu.setObjectName(entry['text'])
+				if entry.get('content') is not None:
+					created = self.create_ui_from_actions(menu, entry['content'], plugin)
+					ui_state["menu_ui_objects"].extend(created)
 
 		if plugin.toolbar_items:
 			toolbar = QToolBar(f"plugin_{name}", editor)
 			editor.addToolBar(toolbar)
-			for item in plugin.toolbar_items:
-				action = toolbar.addAction(item["text"])
-				action.triggered.connect(getattr(plugin, item["callback"]))
+			for entry in plugin.toolbar_items:
+				if entry.get('kind') == 'menu':
+					if entry.get('content') is not None:
+						self.create_ui_from_actions(toolbar, entry['content'], plugin)
+				else:
+					self.create_ui_from_actions(toolbar, [entry], plugin)
 			ui_state["toolbars"].append(toolbar)
 
 		widget = plugin.create_dock_widget(editor)
@@ -121,8 +172,8 @@ class PluginManager(QObject):
 			for toolbar in ui_state["toolbars"]:
 				editor.removeToolBar(toolbar)
 				toolbar.deleteLater()
-			for action in ui_state["menu_actions"]:
-				action.deleteLater()
+			for kind, obj in ui_state["menu_ui_objects"]:
+				obj.deleteLater()
 			for label in ui_state["labels"]:
 				editor.statusBar.removeWidget(label)
 				label.deleteLater()
