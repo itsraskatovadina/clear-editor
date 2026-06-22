@@ -105,6 +105,9 @@ class EditorApp(QMainWindow):
 			self.settings.endArray()
 
 			self.settings.sync()
+		self.tab_panel.closeEvent(event)
+		if not event.isAccepted():
+			return
 		event.accept()
 
 	def zoom_in(self):
