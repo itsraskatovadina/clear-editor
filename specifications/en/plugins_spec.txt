@@ -10,14 +10,15 @@
      (connecting to new tabs) and currentChanged (recount on
      tab switch), triggers initial count.
    on_unload: disconnects from all textChanged, tab_added, currentChanged.
+   menu_items/toolbar_items: not used.
 
 5.2. 'TextProcessing' plugin — text processing in current tab editor.
-    Plugin declares menu_items:
-      "Text": [
-        {"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
-        {"text": "Capitalize first letters", "callback": "capitalize_first_letters_in_selected"}
-      ]
-    A "Text" menu is created in the main menu with the specified items.
+    Declaration:
+      actions — 8 items (see example in plugins_service_spec 4.8.4).
+      menu_items — "Edit" menu with "HTML" submenu.
+      toolbar_items — flat list: wrap_p, wrap_b, make_list.
+        For compactness toolbar text is replaced with short_text
+        via {**action, 'text': action['short_text']}.
 
     Methods:
       selectedTextProcessing(func, **kwargs) — common method,
@@ -30,6 +31,24 @@
 
       capitalize_first_letters_in_selected() — capitalizes
         the first letter of each line in the selected block.
+
+      replace_entity_in_selected() — replaces HTML entities:
+        & → &amp;, < → &lt;, > → &gt;.
+
+      wrap_p_in_selected() — wraps each non-empty line
+        of the selection in <p>...</p>.
+
+      wrap_b_in_selected() — wraps the entire selection in <b>...</b>.
+
+      unwrap_in_selected() — removes the outer parent tag:
+        finds the first <tag> and matching </tag>,
+        returns the content between them.
+
+      make_list_in_selected() — converts non-empty lines
+        of the selection into a <ul>/<li> list.
+
+      make_table_in_selected() — converts non-empty lines
+        with tab separators into a <table>/<tr>/<td> table.
 
     on_load: saves editor.tab_panel for accessing current editor.
     on_unload: clears reference.

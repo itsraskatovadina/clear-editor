@@ -10,15 +10,15 @@
      (подключение к новым вкладкам) и currentChanged (пересчёт при
      переключении), запускает подсчёт.
    on_unload: отключается от всех textChanged, tab_added, currentChanged.
- 
-5.2. 
-    Плагин 'TextProcessing' — обработка текста в редакторе текущей вкладки.
-    Плагин декларирует menu_items:
-      "Text": [
-        {"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
-        {"text": "Capitalize first letters", "callback": "capitalize_first_letters_in_selected"}
-      ]
-    В основном меню создаётся меню "Text" с указанными пунктами.
+   menu_items/toolbar_items: не используются.
+
+5.2. Плагин 'TextProcessing' — обработка текста в редакторе текущей вкладки.
+    Декларация:
+      actions — 8 действий (см. пример в plugins_service_spec 4.8.4).
+      menu_items — меню "Edit" с подменю "HTML".
+      toolbar_items — плоский список: wrap_p, wrap_b, make_list.
+        Для компактности в тулбаре text подменяется на short_text
+        через {**action, 'text': action['short_text']}.
 
     Методы:
       selectedTextProcessing(func, **kwargs) — общий метод,
@@ -31,6 +31,25 @@
 
       capitalize_first_letters_in_selected() — делает заглавной
         первую букву каждой строки в выделенном блоке.
+
+      replace_entity_in_selected() — заменяет HTML-сущности:
+        & → &amp;, < → &lt;, > → &gt;.
+
+      wrap_p_in_selected() — оборачивает каждую непустую строку
+        выделения в <p>...</p>.
+
+      wrap_b_in_selected() — оборачивает всё выделение в <b>...</b>.
+
+      unwrap_in_selected() — удаляет внешний родительский тег:
+        находит первый тег <tag> и соответствующий </tag>,
+        возвращает содержимое между ними.
+
+      make_list_in_selected() — преобразует непустые строки
+        выделения в список <ul>/<li>.
+
+      make_table_in_selected() — преобразует непустые строки
+        с табуляцией-разделителями в таблицу
+        <table>/<tr>/<td>.
 
     on_load: сохраняет editor.tab_panel для доступа к текущему редактору.
     on_unload: очищает ссылку.

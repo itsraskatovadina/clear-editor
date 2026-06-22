@@ -9,3 +9,4 @@ extensions/iclear/__pycache__/
 *.ini
 .venv/
 report.txt
+task.txt

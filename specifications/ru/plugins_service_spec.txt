@@ -59,12 +59,14 @@ class PluginBase(QObject):
    При деактивации плагина PluginManager удаляет все созданные элементы.
    EditorApp не содержит кода, зависящего от конкретных плагинов.
 
-4.8.2. Cписок ключей декларации actions: id, text, kind, callback, icon,
+4.8.2. Cписок ключей декларации actions: id, text, short_text, kind, callback, icon,
    shortcut, statustip, tooltip.
-   Ключ content — только для 'kind': "menu" (если kind=menu, а content
-   отсутствует, считаем что content = []).
-   Ключ "kind" может иметь значения "action" | "menu" | "separator".
-   Если для kind:"action" callback не задан — оставляем без callback.
+   - short_text — опциональный; используется в toolbar_items вместо text
+     для компактного отображения кнопки (например "<p>" вместо "Wrap <p>").
+   - Ключ content — только для 'kind': "menu" (если kind=menu, а content
+     отсутствует, считаем что content = []).
+   - Ключ "kind" может иметь значения "action" | "menu" | "separator".
+   - Если для kind:"action" callback не задан — оставляем без callback.
 
 4.8.3. Индексация actions. Для переиспользования actions группируются
    в index_actions по полю id. Ключ kind:"action" проставляется на этапе
@@ -82,16 +84,24 @@ class SamplePlugin(PluginBase):
     description = "Пример плагина"
 
     actions = [
-        {'id': "replace_entity", 'text': "Replace entity"},
-        {'id': "wrap_p", 'text': "Wrap <p>",
-         'icon': 'icons/tagp.png', 'tooltip': "Wrap &lt;p&gt;",
-         'statustip': "Wrap selected <p>...</p>"},
-        {'id': "wrap_b", 'text': "Wrap <b>", 'icon': 'icons/tagb.png'},
-        {'id': "make_list", 'text': "ul", 'tooltip': "Make list"},
         {'id': "remove_empty", 'text': "Remove empty lines",
          'callback': "remove_empty_lines_in_selected"},
         {'id': "capitalize_first", 'text': "Capitalize first letters",
          'callback': "capitalize_first_letters_in_selected"},
+        {'id': "replace_entity", 'text': "Replace entity",
+         'callback': "replace_entity_in_selected"},
+        {'id': "wrap_p", 'text': "Wrap <p>", 'short_text': "<p>",
+         'icon': 'icons/tagp.png',
+         'callback': "wrap_p_in_selected"},
+        {'id': "wrap_b", 'text': "Wrap <b>", 'short_text': "<b>",
+         'icon': 'icons/tagb.png',
+         'callback': "wrap_b_in_selected"},
+        {'id': "unwrap", 'text': "Unwrap",
+         'callback': "unwrap_in_selected"},
+        {'id': "make_list", 'text': "Make list", 'short_text': "<ul>",
+         'callback': "make_list_in_selected"},
+        {'id': "make_table", 'text': "Make table",
+         'callback': "make_table_in_selected"},
     ]
 
     index_actions = {}
@@ -100,27 +110,24 @@ class SamplePlugin(PluginBase):
         index_actions[i['id']] = i
 
     menu_items = [{
-        'kind': "menu", 'text': "Text", 'content': [
+        'kind': "menu", 'text': "Edit", 'content': [
             index_actions['remove_empty'],
             index_actions['capitalize_first'],
-        ]}, {
-        'kind': "menu", 'text': "HTML", 'content': [
-            index_actions['replace_entity'],
-            {'kind': "menu", 'text': "Wrap", 'content': [
+            {'kind': "separator"},
+            {'kind': "menu", 'text': "HTML", 'content': [
                 index_actions['wrap_p'],
                 index_actions['wrap_b'],
+                index_actions['unwrap'],
+                index_actions['make_list'],
+                index_actions['make_table'],
             ]},
-            {'kind': "separator"},
-            index_actions['make_list'],
         ]},
     ]
 
-    toolbar_items = [{
-        'kind': "menu", 'text': "HTML", 'content': [
-            index_actions['wrap_p'],
-            index_actions['wrap_b'],
-            index_actions['make_list'],
-        ]},
+    toolbar_items = [
+        {**index_actions['wrap_p'], 'text': index_actions['wrap_p']['short_text']},
+        {**index_actions['wrap_b'], 'text': index_actions['wrap_b']['short_text']},
+        {**index_actions['make_list'], 'text': index_actions['make_list']['short_text']},
     ]
 
     def on_load(self, editor):
@@ -135,7 +142,22 @@ class SamplePlugin(PluginBase):
     def capitalize_first_letters_in_selected(self):
         ...
 
-    def replace_entity(self):
+    def replace_entity_in_selected(self):
+        ...
+
+    def wrap_p_in_selected(self):
+        ...
+
+    def wrap_b_in_selected(self):
+        ...
+
+    def unwrap_in_selected(self):
+        ...
+
+    def make_list_in_selected(self):
+        ...
+
+    def make_table_in_selected(self):
         ...
 
 4.9. PluginManager — вспомогательные методы _setup_ui
