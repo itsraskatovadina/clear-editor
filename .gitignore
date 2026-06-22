@@ -7,3 +7,5 @@ extensions/__pycache__/
 extensions/iclear/__pycache__/
 
 *.ini
+.venv/
+report.txt

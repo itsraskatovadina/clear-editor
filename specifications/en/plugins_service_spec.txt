@@ -149,38 +149,43 @@ class SamplePlugin(PluginBase):
    works for both menu_items and toolbar_items):
    - create_ui_from_actions(self, target, actions, plugin)
       — recursively builds UI from a nested list.
-      - kind='menu': creates submenu (for QMenu) or inlines content
-        (for QToolBar, which lacks addMenu)
+      - kind='menu':
+        * target has addMenu (QMenu) → creates submenu
+        * target is QToolBar → creates QToolButton with QMenu
       - kind='separator': addSeparator()
       - kind='action': create_action(), callback resolved via getattr(plugin, ...)
       - Returns a list of (type, object) tuples for cleanup.
 
 4.9.3. create_ui_from_actions is used for both menu_items (QMenu)
-   and toolbar_items (QToolBar, via menu=QToolBar, since QToolBar
-   has addAction/addMenu/addSeparator). Toolbar with separator is
-   expected behavior.
+   and toolbar_items (QToolBar). For toolbar kind='menu' creates
+   a QToolButton with QMenu (popup button). Import: QToolButton from
+   PyQt5.QtWidgets.
 
-4.9.4. _setup_ui rewritten:
-      - status_fields: unchanged
-      - menu_items: iterates entries, for kind='menu' finds/creates QMenu,
-        calls create_ui_from_actions
-      - toolbar_items: creates QToolBar, for kind='menu' calls
-        create_ui_from_actions (flat insertion, addMenu not needed)
-      - create_dock_widget: unchanged
-      - ui_state["menu_ui_objects"] stores (type, object) tuples instead
-        of the previous QAction list — allows proper cleanup of
-        both QActions and QMenu (submenus)
-   - deactivate updated:
-      - menu_ui_objects: iterates (kind, obj), obj.deleteLater()
-      - Everything else unchanged
+4.9.4. _setup_ui:
+       - status_fields: unchanged
+       - menu_items: iterates entries, for kind='menu' finds/creates QMenu,
+         calls create_ui_from_actions, appends to menu_ui_objects
+       - toolbar_items: creates QToolBar, calls create_ui_from_actions
+         for all entries, appends to menu_ui_objects
+       - create_dock_widget: unchanged
+   - deactivate: menu_ui_objects — iterates (kind, obj), obj.deleteLater()
 
-4.9.5. Implementation notes:
- 	- create_ui_from_actions accepts plugin for callback resolution
- 	  by name (getattr). This allows storing string method names
- 	  in actions and maintains a single mechanism.
- 	- For QToolBar, kind='menu' does not create a submenu (addMenu
- 	  is absent), but recursively inlines the content. This matches
- 	  the spec.
- 	- In deactivate, the toolbar is removed entirely (removeToolBar
- 	  + deleteLater), so QActions created for the toolbar do not
- 	  need separate tracking — they are deleted with the toolbar.
+4.9.5. variant_tool_submenu — PluginManager class variable:
+   PluginManager.variant_tool_submenu = 'InstantPopupArrow'
+   Options:
+   - 'InstantPopupArrow': QToolButton.InstantPopup + ↓ symbol in text
+   - 'InstantPopup': QToolButton.InstantPopup, no symbol
+   - 'MenuButtonPopup': QToolButton.MenuButtonPopup (separate arrow zone)
+   Can be changed at runtime (affects newly activated plugins).
+
+4.9.6. Implementation notes:
+  	- create_ui_from_actions accepts plugin for callback resolution
+  	  by name (getattr). This allows storing string method names
+  	  in actions and maintains a single mechanism.
+  	- For QToolBar kind='menu' creates QToolButton with QMenu.
+  	  Nested submenus (menu inside toolbar menu) work via recursion:
+  	  target becomes QMenu (has addMenu).
+  	- In deactivate, the toolbar is removed entirely (removeToolBar
+  	  + deleteLater). Child widgets (QToolButton, QMenu) are deleted
+  	  with the toolbar. They are also stored in menu_ui_objects for
+  	  uniform cleanup.

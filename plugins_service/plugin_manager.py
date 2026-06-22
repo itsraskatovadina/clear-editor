@@ -7,12 +7,15 @@ from typing import Optional, Dict
 
 from PyQt5.QtCore import Qt, QObject
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QAction, QDockWidget, QLabel, QMenu, QToolBar
+from PyQt5.QtWidgets import QAction, QDockWidget, QLabel, QMenu, QToolBar, QToolButton
 
 from plugins_service.plugin_base import PluginBase
 
 
 class PluginManager(QObject):
+	# переключатель режима подменю в тулбаре
+	variant_tool_submenu = 'InstantPopupArrow'  # 'InstantPopup' | 'InstantPopupArrow' | 'MenuButtonPopup'
+
 	def __init__(self, parent=None, plugins_dir=None):
 		super().__init__(parent)
 		if plugins_dir:
@@ -96,7 +99,23 @@ class PluginManager(QObject):
 					submenu = target.addMenu(entry['text'])
 					created.append(('menu', submenu))
 				else:
-					submenu = target
+					submenu = QMenu(entry['text'])
+					btn = QToolButton()
+					btn.setText(entry['text'])
+					if entry.get('icon'):
+						btn.setIcon(QIcon(entry['icon']))
+					btn.setMenu(submenu)
+					# variant_tool_submenu: 'InstantPopup' | 'InstantPopupArrow' | 'MenuButtonPopup'
+					if self.variant_tool_submenu == 'InstantPopupArrow':
+						btn.setText(entry['text'] + ' \u2193')
+						btn.setPopupMode(QToolButton.InstantPopup)
+					elif self.variant_tool_submenu == 'InstantPopup':
+						btn.setPopupMode(QToolButton.InstantPopup)
+					else:
+						btn.setPopupMode(QToolButton.MenuButtonPopup)
+					target.addWidget(btn)
+					created.append(('menu_button', btn))
+					created.append(('menu', submenu))
 				if entry.get('content') is not None:
 					created.extend(
 						self.create_ui_from_actions(submenu, entry['content'], plugin))
@@ -145,12 +164,8 @@ class PluginManager(QObject):
 		if plugin.toolbar_items:
 			toolbar = QToolBar(f"plugin_{name}", editor)
 			editor.addToolBar(toolbar)
-			for entry in plugin.toolbar_items:
-				if entry.get('kind') == 'menu':
-					if entry.get('content') is not None:
-						self.create_ui_from_actions(toolbar, entry['content'], plugin)
-				else:
-					self.create_ui_from_actions(toolbar, [entry], plugin)
+			created = self.create_ui_from_actions(toolbar, plugin.toolbar_items, plugin)
+			ui_state["menu_ui_objects"].extend(created)
 			ui_state["toolbars"].append(toolbar)
 
 		widget = plugin.create_dock_widget(editor)

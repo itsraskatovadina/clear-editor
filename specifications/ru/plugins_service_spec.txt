@@ -9,7 +9,7 @@
        "class": "WordCountPlugin"
    }
 4.2. Обнаружение плагинов производится с помощью чтения их манифестов
-Plugin Manager:
+Plugin Manager (класс PluginManager):
    - Сканирует plugins/
    - Читает manifest.json в каждой подпапке
    - Динамически импортирует модуль (importlib)
@@ -150,38 +150,43 @@ class SamplePlugin(PluginBase):
    подходит и для menu_items, и для toolbar_items):
    - create_ui_from_actions(self, target, actions, plugin)
      — рекурсивно строит UI из вложенного списка.
-     - kind='menu': создаёт подменю (для QMenu) или встраивает содержимое
-       (для QToolBar, где addMenu отсутствует)
+     - kind='menu':
+       * target имеет addMenu (QMenu) → создаёт подменю
+       * target — QToolBar → создаёт QToolButton с QMenu
      - kind='separator': addSeparator()
      - kind='action': create_action(), callback резолвится через getattr(plugin, ...)
      - Возвращает список кортежей (тип, объект) для последующей очистки.
 
 4.9.3. create_ui_from_actions применяется как для menu_items (QMenu),
-   так и для toolbar_items (QToolBar, через menu=QToolBar, т.к. у QToolBar
-   есть addAction/addMenu/addSeparator). Тулбар с separator —
-   ожидаемое поведение.
-   
-4.9.4. _setup_ui переписан:
+   так и для toolbar_items (QToolBar). Для тулбара kind='menu' создаёт
+   QToolButton с QMenu (popup-кнопка). Импорт: QToolButton из PyQt5.QtWidgets.
+
+4.9.4. _setup_ui:
      - status_fields: без изменений
      - menu_items: итерирует entry, для kind='menu' находит/создаёт QMenu,
-       вызывает create_ui_from_actions
-     - toolbar_items: создаёт QToolBar, для kind='menu' вызывает
-       create_ui_from_actions (флаттерная вставка, addMenu не нужен)
+       вызывает create_ui_from_actions, результат в menu_ui_objects
+     - toolbar_items: создаёт QToolBar, вызывает create_ui_from_actions
+       для всех entry, результат в menu_ui_objects
      - create_dock_widget: без изменений
-     - ui_state["menu_ui_objects"] хранит кортежи (тип, объект) вместо
-       прежнего списка QAction — это позволяет корректно удалять
-       и QActions, и QMenu (подменю)
-   - deactivate обновлён:
-     - menu_ui_objects: итерация по (kind, obj), obj.deleteLater()
-     - Остальное без изменений
+   - deactivate: menu_ui_objects — итерация по (kind, obj), obj.deleteLater()
 
-4.9.5. Особенности реализации:
+4.9.5. variant_tool_submenu — классовая переменная PluginManager:
+   PluginManager.variant_tool_submenu = 'InstantPopupArrow'
+   Варианты:
+   - 'InstantPopupArrow': QToolButton.InstantPopup + символ ↓ в тексте
+   - 'InstantPopup': QToolButton.InstantPopup, без символа
+   - 'MenuButtonPopup': QToolButton.MenuButtonPopup (стрелка отдельно)
+   Переключение без перезапуска — меняется поведение для новых плагинов.
+
+4.9.6. Особенности реализации:
 	- create_ui_from_actions принимает plugin для резолва callback'ов
 	  по имени (getattr). Это позволяет хранить в actions строковые
 	  имена методов и поддерживать единый механизм.
-	- Для QToolBar kind='menu' не создаёт подменю (addMenu отсутствует),
-	  а рекурсивно встраивает содержимое. Это соответствует spec.
+	- Для QToolBar kind='menu' создаёт QToolButton с QMenu.
+	  Вложенные подменю (menu внутри menu тулбара) работают через
+	  рекурсию: target становится QMenu (есть addMenu).
 	- В deactivate toolbar удаляется целиком (removeToolBar + deleteLater),
-	  поэтому созданные для тулбара QAction'ы не нужно отслеживать
-	  отдельно — они удаляются вместе с тулбаром.
+	  все дочерние виджеты (QToolButton, QMenu) удаляются вместе с тулбаром.
+	  Дополнительно они сохраняются в menu_ui_objects для единообразной
+	  очистки.
 
