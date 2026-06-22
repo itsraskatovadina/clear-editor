@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import sys
 from pathlib import Path
 from typing import Optional, Dict
 
@@ -61,12 +62,15 @@ class PluginManager(QObject):
 		folder = Path(manifest["_path"])
 		entry = folder / manifest["entry"]
 
-		spec = importlib.util.spec_from_file_location(manifest["name"], entry)
-		if not spec or not spec.loader:
-			return None
-
-		module = importlib.util.module_from_spec(spec)
-		spec.loader.exec_module(module)
+		sys.path.insert(0, str(folder))
+		try:
+			spec = importlib.util.spec_from_file_location(manifest["name"], entry)
+			if not spec or not spec.loader:
+				return None
+			module = importlib.util.module_from_spec(spec)
+			spec.loader.exec_module(module)
+		finally:
+			sys.path.remove(str(folder))
 
 		plugin_class = getattr(module, manifest["class"])
 		plugin = plugin_class()
@@ -168,11 +172,18 @@ class PluginManager(QObject):
 			ui_state["menu_ui_objects"].extend(created)
 			ui_state["toolbars"].append(toolbar)
 
+		toolbar_widget = plugin.create_toolbar_widget(editor)
+		if toolbar_widget is not None:
+			toolbar = QToolBar(f"plugin_{name}_toolbar", editor)
+			toolbar.addWidget(toolbar_widget)
+			editor.addToolBar(toolbar)
+			ui_state["toolbars"].append(toolbar)
+
 		widget = plugin.create_dock_widget(editor)
 		if widget is not None:
 			dock = QDockWidget(plugin.name, editor)
 			dock.setWidget(widget)
-			editor.addDockWidget(Qt.BottomDockWidgetArea, dock)
+			editor.addDockWidget(plugin.dock_area, dock)
 			ui_state["docks"].append(dock)
 
 		self._active_ui[name] = ui_state

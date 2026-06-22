@@ -2,7 +2,7 @@
 
 from typing import Optional, Dict, List
 
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import QObject, Qt
 from PyQt5.QtWidgets import QWidget
 
 
@@ -13,6 +13,7 @@ class PluginBase(QObject):
 	menu_items: List[dict] = []
 	toolbar_items: List[dict] = []
 	status_fields: Dict[str, dict] = {}
+	dock_area = Qt.BottomDockWidgetArea
 
 	def on_load(self, editor):
 		pass
@@ -21,4 +22,7 @@ class PluginBase(QObject):
 		pass
 
 	def create_dock_widget(self, parent=None) -> Optional[QWidget]:
+		return None
+
+	def create_toolbar_widget(self, parent=None) -> Optional[QWidget]:
 		return None

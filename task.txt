@@ -1,1 +1,4 @@
-реализуй plugins_service_spec, комментарии - в файл report.txt
+сделано:
+- specifications/ru/iclear_spec.txt: добавлен раздел 2.3 «Файлы map.xml»
+  с описанием структуры на уровнях host, site, man и атрибутов li
+- раздел 6 (Соглашения): убрано дублирующее описание атрибутов map.xml
