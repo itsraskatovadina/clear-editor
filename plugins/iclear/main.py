@@ -23,10 +23,10 @@ class IclearPlugin(PluginBase):
 	def create_toolbar_widget(self, parent=None):
 		self._widget = IclearWidget(parent=parent)
 		if self._editor and hasattr(self._editor, 'tab_panel'):
-			self._editor.tab_panel.tab_added.connect(self._on_tab_added)
+			self._editor.tab_panel.currentChanged.connect(self._on_current_tab_changed)
 		return self._widget
 
-	def _on_tab_added(self, editor_widget):
-		file_editor = editor_widget.parent()
+	def _on_current_tab_changed(self, index):
+		file_editor = self._editor.tab_panel.widget(index)
 		if hasattr(file_editor, 'path') and file_editor.path and self._widget:
 			self._widget.fill_from_page_path(str(file_editor.path))

@@ -24,6 +24,8 @@ class TextProcessingPlugin(PluginBase):
          'callback': "unwrap_in_selected"},
         {'id': "make_list", 'text': "Make list", 'short_text': "<ul>",
          'callback': "make_list_in_selected"},
+        {'id': "make_nested_list", 'text': "Nested list", 'short_text': "<ul+>",
+         'callback': "make_nested_list_in_selected"},
         {'id': "make_table", 'text': "Make table",
          'callback': "make_table_in_selected"},
     ]
@@ -43,6 +45,7 @@ class TextProcessingPlugin(PluginBase):
                 index_actions['wrap_b'],
                 index_actions['unwrap'],
                 index_actions['make_list'],
+                index_actions['make_nested_list'],
                 index_actions['make_table']
             ]}
             ]
@@ -52,6 +55,7 @@ class TextProcessingPlugin(PluginBase):
         {**index_actions['wrap_p'], 'text': index_actions['wrap_p']['short_text']},
         {**index_actions['wrap_b'], 'text': index_actions['wrap_b']['short_text']},
         {**index_actions['make_list'], 'text': index_actions['make_list']['short_text']},
+        {**index_actions['make_nested_list'], 'text': index_actions['make_nested_list']['short_text']},
     ]
 
     def on_load(self, editor):
@@ -132,6 +136,50 @@ class TextProcessingPlugin(PluginBase):
             lis = "\n".join(f"    <li>{item}</li>" for item in items)
             return f"<ul>\n{lis}\n</ul>"
         self.selectedTextProcessing(to_list)
+
+    @staticmethod
+    def _indent_depth(raw):
+        normalized = raw.replace('\t', '    ')
+        return len(normalized) // 4
+
+    def make_nested_list_in_selected(self):
+        def to_nested_list(text):
+            lines = [line for line in text.split('\n') if line.strip()]
+            if not lines:
+                return text
+
+            root_children = []
+            stack = []
+            for line in lines:
+                stripped = line.lstrip()
+                raw = line[:len(line) - len(stripped)]
+                depth = TextProcessingPlugin._indent_depth(raw)
+                node = [stripped, []]
+                while stack and stack[-1][0] >= depth:
+                    stack.pop()
+                if stack:
+                    stack[-1][1].append(node)
+                else:
+                    root_children.append(node)
+                stack.append((depth, node[1]))
+
+            def render(children, depth):
+                out = []
+                indent = '\t' * depth
+                for text, grandchildren in children:
+                    if grandchildren:
+                        out.append(f'{indent}<li>{text}\t<ul>')
+                        out.extend(render(grandchildren, depth + 1))
+                        out.append(f'{indent}</ul></li>')
+                    else:
+                        out.append(f'{indent}<li>{text}</li>')
+                return out
+
+            result = ['<ul>']
+            result.extend(render(root_children, 1))
+            result.append('</ul>')
+            return '\n'.join(result)
+        self.selectedTextProcessing(to_nested_list)
 
     def make_table_in_selected(self):
         def to_table(text):

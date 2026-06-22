@@ -4,6 +4,7 @@ import sys
 import traceback
 
 from PyQt5.QtWidgets import QApplication, QAction
+from PyQt5.QtGui import (QKeySequence)
 
 from plugins_service.plugin_manager import PluginManager
 from plugins_service.plugin_widget import PluginWidget
@@ -109,8 +110,10 @@ def main():
 		plugin_manager.activate(name, editor_app)
 
 	settings_menu = menu_bar.addMenu("Settings")
-	settings_menu.addAction("Zoom In", editor_app.zoom_in)
-	settings_menu.addAction("Zoom Out", editor_app.zoom_out)
+	action_zoom_in = settings_menu.addAction("Zoom In", editor_app.zoom_in)
+	action_zoom_in.setShortcut(QKeySequence.ZoomIn)
+	action_zoom_out = settings_menu.addAction("Zoom Out", editor_app.zoom_out)
+	action_zoom_out.setShortcut(QKeySequence.ZoomOut)
 	settings_menu.addSeparator()
 	settings_menu.addAction("Plugins", open_plugin_settings)
 
