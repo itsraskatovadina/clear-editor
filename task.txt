@@ -1,3 +1,0 @@
-сделано:
-- EditorApp.closeEvent: порядок исправлен — настройки сохраняются ДО закрытия вкладок,
-  чтобы open_files не был пустым. Затем tab_panel.closeEvent, проверка isAccepted().
