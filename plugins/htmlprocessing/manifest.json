@@ -1,0 +1,6 @@
+{
+    "name": "htmlprocessing",
+    "description": "Обработка HTML кода в редакторе",
+    "entry": "main.py",
+    "class": "HTMLProcessingPlugin"
+}

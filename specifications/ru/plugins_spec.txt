@@ -53,4 +53,108 @@
 
     on_load: сохраняет editor.tab_panel для доступа к текущему редактору.
     on_unload: очищает ссылку.
+    
+Дополнение 
+1. дополнение сервиса wrap, оборачивание произвольным тегом
+- выбор тега, сохранение его до конца сеанса или до того как будет выбран другой тег, переменная selected_tag, меню 'select tag',
+в начале сеанса selected_tag = div
+- оборачивание выделенного текста выбранным тегом, при изменение тега, название меню изменяется  'wrap {selected_tag}'
+2. сервис вставки шаблонов (простейший, без переменных типа {}) в плагин 'TextProcessing'
+пункт меню 'insert a template' - после capitalize_first, toolbar_items — не используются
+по нажатию динамически генерируется подменю, каждый пункт которого - один шаблон 
+шаблоны хранятся в файле templates.json в папке плагина
+пример 
+{
+  "greeting": "Здравствуйте!",
+  "goodbye": "До свидания.\nБлагодарим за общение."
+}
  
+5.3. Плагин 'HTMLProcessing' — обработка html кода в редакторе текущей вкладки.
+	Декларация:
+	  actions — 2 действия: gen_content_list, validate_html.
+	  menu_items — меню "Edit" с подменю "HTML" (любое место, вливается
+	    в существующее подменю HTML от TextProcessing).
+	  toolbar_items — не используются.
+	  Сигнал: message = pyqtSignal(str, str, str) — наследуется от PluginBase.
+	    При активации: plugin.message.connect(editor_app.on_message), 
+	    При деактивации: отключается
+
+	Метод:
+	  gen_content_list(start_head_level=1, pass_nocontents=False)
+
+	  Парсит HTML-код текущей вкладки (editor.tab_panel.currentWidget().editor.toPlainText()),
+	  находит все заголовки <h1>–<h6>, извлекает атрибут id (если есть) и
+	  текстовое содержимое заголовка. Строит вложенный список <ul>/<li> с
+	  ссылками <a href="#anchor_id">текст_заголовка</a>.
+	  Результат выводит в msg_panel.view_box через setPlainText (сырой HTML-код).
+
+	  Параметры:
+	    start_head_level (int, default=1) — минимальный уровень заголовка,
+	      с которого начинать генерацию. Заголовки уровнем ниже игнорируются.
+	      Например, start_head_level=2 пропускает <h1>, начинает с <h2>.
+	    pass_nocontents (bool, default=False) — если True, заголовки
+	      с классом nocontents (<h2 class="nocontents">) пропускаются.
+
+	  Правила генерации:
+	    - Атрибут id: если у тега заголовка есть id, он используется в href.
+	      Если id отсутствует — href="#", и в систему сообщений отправляется:
+	      self.message.emit(f'header in the {num} row has no anchor.',
+	                       self.__class__.__name__, 'info')
+	      где num — номер строки заголовка в HTML-коде (1-indexed).
+
+	    - Вложенность: заголовки меньшего уровня (h2 < h3) открывают новый <ul>.
+	      Заголовки большего или равного уровня закрывают текущий <ul> и </li>.
+	      При разрыве уровня (например, после h3 идёт h5) — добавляется
+	      пустой <ul> между ними, чтобы сохранить корректную вложенность.
+
+	    - Класс nocontents: если pass_nocontents=True, заголовки,
+	      содержащие class="nocontents" (или class='nocontents'),
+	      исключаются из оглавления.
+
+	  Пример вывода (вкладка View, setPlainText):
+	    <ul>
+	    <li><a href="#intro">Введение</a>
+	      <ul>
+	      <li><a href="#setup">Установка</a></li>
+	      <li><a href="#usage">Использование</a></li>
+	      </ul>
+	    </li>
+	    <li><a href="#">Основы</a></li>
+	    <li><a href="#advanced">Продвинутые темы</a>
+	      <ul>
+	      <ul>
+	      <li><a href="#decorators">Декораторы</a></li>
+	      </ul>
+	      </ul>
+	    </li>
+	    </ul>
+
+	    Примечание: пустой <ul> между <li> и <li> возникает, когда уровень
+	    заголовка прыгает (h3 → h5 без h4).
+
+	  validate_html() — валидация HTML-кода текущей вкладки.
+
+	  Удаляет PHP-блоки (<?php ... ?>) из текста, затем проверяет
+	  корректность вложенности HTML-тегов с помощью стека.
+	  Останавливается на первой ошибке.
+
+	  Правила проверки:
+	    - Строчные теги (void elements: br, img, input, hr, meta, link,
+	      area, base, col, embed, source, track, wbr) не влияют на стек.
+	    - Комментарии <!-- ... --> и PHP-блоки игнорируются.
+	    - Если в тексте нет ни одного HTML-тега — сообщение:
+	      self.message.emit(f'File has no tags.', self.__class__.__name__, 'info')
+	    - Если ошибок нет — сообщение:
+	      self.message.emit(f'No errors in {fname}.', self.__class__.__name__, 'info')
+	    - При обнаружении ошибки — открывается диалоговое окно ValErrorsDialog
+	      со списком ошибок. Каждый элемент содержит номер строки и описание.
+	      Клик по элементу переводит курсор редактора на соответствующую строку.
+
+	  Диалог ValErrorsDialog(QDialog):
+	    - QListWidget со строками вида "Row X: описание ошибки"
+	    - itemClicked -> editor.goto_line(line_number)
+	    - Кнопка "Закрыть"
+
+	on_load: сохраняет editor, подключает plugin.message к editor.on_message.
+	on_unload: очищает ссылки.
+	
