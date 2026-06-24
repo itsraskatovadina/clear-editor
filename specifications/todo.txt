@@ -1,0 +1,36 @@
+
+--------------------------------------------------------------
+Перераспределение и структурирование функциональности в main и EditorApp: 
+	- в EditorApp: создание окна, загрузка конфига, сохранение/восстановление сессии, создание меню и все необходимое для меню
+	- в main функциональность для загрузки плагинов, вызов функций EditorApp, перенаправление sys.stderr и app.focusChanged.connect)
+Что делаем: 
+Изменяем create_menu_bar, преносим ее в EditorApp, но вызываем из main
+- action_zoom добавить в create_menu_bar,
+- settings_menu.addSeparator(); settings_menu.addAction("Plugins", open_plugin_settings)
+	добавлять в конец settings_menu  
+- метод create_menu_bar, функциональность recent_files перенести в EditorApp
+- в EditorApp: add metod restore_setting, отделить от load_config, add metod save_setting отделить от closeEvent
+- win_title (default: 'Text Editor'), QFont.setFamily (default: 'SansSerif'),
+  setWindowIcon(QIcon('icons/clear.svg')) (если файла нет - оставляем без иконки)
+	брать из config в load_config, ошибки в MsgPanel, в сессии не изменять, load_config запускает main
+
+--------------------------------------------------------------
+Плагины
+1. Плагин 'HTMLProcessing' переименовать в HTMLTools, перенести в меню Tools
+2. Плагин 'TextProcessing' - Дополнение 
+2.1. дополнение сервиса wrap, оборачивание произвольным тегом
+- выбор тега, сохранение его до конца сеанса или до того как будет выбран другой тег, переменная selected_tag, меню 'select tag',
+в начале сеанса selected_tag = div
+- оборачивание выделенного текста выбранным тегом, при изменение тега, название меню изменяется  'wrap {selected_tag}'
+2.2. добавляем простой сервис вставки шаблонов в плагин 'TextProcessing'
+пункт меню 'insert a template' - после capitalize_first, toolbar_items — не используются
+по нажатию динамически генерируется подменю, каждый пункт которого - один шаблон 
+шаблоны хранятся в файле templates.json в папке плагина
+пример 
+{
+  "greeting": "Здравствуйте!",
+  "goodbye": "До свидания.\nБлагодарим за общение."
+}
+3. В окне выбора плагинов PluginWidget добавить возможность настройки плагинов ()
+4. Настройка видимости тулбаров и панелей
+5. Спецификации плагинов переместить в отдельную папку и разделить
