@@ -15,11 +15,11 @@ VOID_ELEMENTS = {
 
 
 class ValErrorsDialog(QDialog):
-    def __init__(self, errors, editor_widget, on_revalidate=None, parent=None):
+    def __init__(self, errors, editor, on_revalidate=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Validation errors')
         self.setMinimumSize(500, 100)
-        self._editor_widget = editor_widget
+        self._editor = editor
         self._on_revalidate = on_revalidate
 
         layout = QVBoxLayout(self)
@@ -50,12 +50,11 @@ class ValErrorsDialog(QDialog):
         match = re.match(r'Row (\d+):', text)
         if match:
             line = int(match.group(1))
-            editor = self._editor_widget.editor
-            block = editor.document().findBlockByNumber(line - 1)
+            block = self._editor.document().findBlockByNumber(line - 1)
             if block:
                 cursor = QTextCursor(block)
-                editor.setTextCursor(cursor)
-                editor.setFocus()
+                self._editor.setTextCursor(cursor)
+                self._editor.setFocus()
 
 
 class HTMLProcessingPlugin(PluginBase):
@@ -97,10 +96,10 @@ class HTMLProcessingPlugin(PluginBase):
         self._editor = None
 
     def gen_content_list(self, start_head_level=1, pass_nocontents=False):
-        editor_widget = self._editor.tab_panel.currentWidget()
-        if editor_widget is None:
+        editor = self._editor.current_editor()
+        if editor is None:
             return
-        text = editor_widget.editor.toPlainText()
+        text = editor.toPlainText()
 
         heading_pattern = re.compile(
             r'<h([1-6])([^>]*)>(.*?)</h\1>', re.DOTALL | re.IGNORECASE
@@ -196,11 +195,11 @@ class HTMLProcessingPlugin(PluginBase):
         self._editor.msg_panel.new_view('\n'.join(html_lines))
 
     def validate_html(self):
-        editor_widget = self._editor.tab_panel.currentWidget()
-        if editor_widget is None:
+        editor = self._editor.current_editor()
+        if editor is None:
             return
-        text = editor_widget.editor.toPlainText()
-        fname = editor_widget.get_path_name()
+        text = editor.toPlainText()
+        fname = self._editor.current_file_name()
 
         clean = re.sub(r'<\?php[\s\S]*?\?>', '', text)
         clean = re.sub(r'<!--[\s\S]*?-->', '', clean)
@@ -255,7 +254,7 @@ class HTMLProcessingPlugin(PluginBase):
             )
         else:
             dialog = ValErrorsDialog(
-                errors, editor_widget, self.validate_html, self._editor
+                errors, editor, self.validate_html, self._editor
             )
             self._val_dialog = dialog
             dialog.show()

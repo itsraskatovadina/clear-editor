@@ -146,8 +146,8 @@ class PluginManager(QObject):
 		}
 
 		for fid, field in plugin.status_fields.items():
-			label = QLabel(parent=editor.statusBar)
-			editor.statusBar.addPermanentWidget(label)
+			label = QLabel(parent=editor.get_status_bar())
+			editor.get_status_bar().addPermanentWidget(label)
 			signal = getattr(plugin, field["signal_name"])
 			signal.connect(
 				lambda value, t=field["label_template"], l=label:
@@ -157,9 +157,9 @@ class PluginManager(QObject):
 
 		for entry in plugin.menu_items:
 			if entry.get('kind') == 'menu':
-				menu = editor.menuBar().findChild(QMenu, entry['text'])
+				menu = editor.get_menu_bar().findChild(QMenu, entry['text'])
 				if not menu:
-					menu = editor.menuBar().addMenu(entry['text'])
+					menu = editor.get_menu_bar().addMenu(entry['text'])
 					menu.setObjectName(entry['text'])
 				if entry.get('content') is not None:
 					created = self.create_ui_from_actions(menu, entry['content'], plugin)
@@ -201,7 +201,7 @@ class PluginManager(QObject):
 			for kind, obj in ui_state["menu_ui_objects"]:
 				obj.deleteLater()
 			for label in ui_state["labels"]:
-				editor.statusBar.removeWidget(label)
+				editor.get_status_bar().removeWidget(label)
 				label.deleteLater()
 		plugin = self._active.pop(name, None)
 		if plugin:

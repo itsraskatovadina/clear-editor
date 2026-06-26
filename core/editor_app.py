@@ -3,8 +3,8 @@
 import json
 from pathlib import Path
 
-from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel, QAction
+from PyQt5.QtGui import QFont, QIcon, QKeySequence
 from PyQt5.QtCore import Qt, QPoint, QSize, QSettings, pyqtSignal
 
 from core.tab_panel import TabPanel
@@ -137,8 +137,37 @@ class EditorApp(QMainWindow):
 		self.recent_files = []
 		self.recent_files_changed.emit()
 
+	def _update_recent_files_menu(self):
+		self.recent_files_menu.clear()
+		for i, file_path in enumerate(self.recent_files):
+			action_text = f"{i + 1}. {file_path}"
+			action = QAction(action_text, self)
+			action.setData(file_path)
+			action.triggered.connect(self.action_open_recent_file)
+			self.recent_files_menu.addAction(action)
+		if len(self.recent_files) == 0:
+			no_files_action = QAction("No recent file", self)
+			no_files_action.setEnabled(False)
+			self.recent_files_menu.addAction(no_files_action)
+		else:
+			self.recent_files_menu.addSeparator()
+			action = self.recent_files_menu.addAction("Clear recent files")
+			action.triggered.connect(self.action_clear_recent_files)
+
 	def current_editor(self):
 		return self.tab_panel.current_editor()
+
+	def current_file_name(self):
+		widget = self.tab_panel.currentWidget()
+		if widget:
+			return widget.get_path_name()
+		return ''
+
+	def get_status_bar(self):
+		return self.statusBar
+
+	def get_menu_bar(self):
+		return self.menuBar()
 
 	def set_tab_panel(self):
 		file_list = []
@@ -156,6 +185,31 @@ class EditorApp(QMainWindow):
 		if self.tab_panel.count() == 0:
 			self.tab_panel.new_tab()
 
+	def create_menu_bar(self, menu_bar):
+		file_menu = menu_bar.addMenu("File")
+		file_menu.addAction('New', self.tab_panel.new_tab)
+		file_menu.addAction('Open', self.tab_panel.open_file)
+		file_menu.addAction('Save', self.tab_panel.current_tab_save)
+		file_menu.addAction('Save As', self.tab_panel.current_tab_save_as)
+		file_menu.addAction('Close', self.tab_panel.current_tab_close)
+		file_menu.addSeparator()
+		file_menu.addAction('Reload', self.tab_panel.current_tab_reload)
+		file_menu.addSeparator()
+		file_menu.addAction('Property', self.tab_panel.current_tab_view_property)
+		file_menu.addSeparator()
+		self.recent_files_menu = file_menu.addMenu("Recent files")
+
+		self.recent_files_changed.connect(self._update_recent_files_menu)
+		self._update_recent_files_menu()
+
+		settings_menu = menu_bar.addMenu("Settings")
+		action_zoom_in = settings_menu.addAction("Zoom In", self.zoom_in)
+		action_zoom_in.setShortcut(QKeySequence.ZoomIn)
+		action_zoom_out = settings_menu.addAction("Zoom Out", self.zoom_out)
+		action_zoom_out.setShortcut(QKeySequence.ZoomOut)
+		settings_menu.addSeparator()
+		self.plugins_action = settings_menu.addAction("Plugins")
+
 	def on_message(self, msg, sender, msgtype):
 		self.msg_panel.new_message(msg, sender, msgtype)
 
@@ -170,4 +224,7 @@ class EditorApp(QMainWindow):
 		if operation in ['Opened', 'Saved as', 'Reload']:
 			self.add_recent_file(fname)
 			self.recent_files_changed.emit()
+
+	def on_app_focus_changed(self, old, now):
+		self.tab_panel.on_app_focus_changed(old, now)
 			

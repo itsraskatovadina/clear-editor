@@ -59,13 +59,13 @@ class TextProcessingPlugin(PluginBase):
     ]
 
     def on_load(self, editor):
-        self._panel = editor.tab_panel
+        self._editor = editor
 
     def on_unload(self):
-        self._panel = None
+        self._editor = None
 
     def selectedTextProcessing(self, func, **kwargs):
-        editor_widget = self._panel.currentWidget().editor
+        editor_widget = self._editor.current_editor()
         cursor = editor_widget.textCursor()
         if not cursor.hasSelection():
             return False

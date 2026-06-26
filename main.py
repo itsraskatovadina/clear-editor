@@ -3,8 +3,7 @@
 import sys
 import traceback
 
-from PyQt5.QtWidgets import QApplication, QAction
-from PyQt5.QtGui import (QKeySequence)
+from PyQt5.QtWidgets import QApplication
 
 from plugins_service.plugin_manager import PluginManager
 from plugins_service.plugin_widget import PluginWidget
@@ -67,41 +66,9 @@ def main():
 				if name not in active_before:
 					plugin_manager.activate(name, editor_app)
 
-	def create_menu_bar(menu_bar):
-		file_menu = menu_bar.addMenu("File")
-		file_menu.addAction('New', editor_app.tab_panel.new_tab)
-		file_menu.addAction('Open', editor_app.tab_panel.open_file)
-		file_menu.addAction('Save', editor_app.tab_panel.current_tab_save)
-		file_menu.addAction('Save As', editor_app.tab_panel.current_tab_save_as)
-		file_menu.addAction('Close', editor_app.tab_panel.current_tab_close)
-		file_menu.addSeparator()
-		file_menu.addAction('Reload', editor_app.tab_panel.current_tab_reload)
-		file_menu.addSeparator()
-		file_menu.addAction('Property', editor_app.tab_panel.current_tab_view_property)
-		file_menu.addSeparator()
-		editor_app.recent_files_menu = file_menu.addMenu("Recent files")
-
-	def update_recent_files_menu():
-		editor_app.recent_files_menu.clear()
-		for i, file_path in enumerate(editor_app.recent_files):
-			action_text = f"{i+1}. {file_path}"
-			action = QAction(action_text, editor_app)
-			action.setData(file_path)
-			action.triggered.connect(editor_app.action_open_recent_file)
-			editor_app.recent_files_menu.addAction(action)
-		if len(editor_app.recent_files) == 0:
-			no_files_action = QAction("No recent file", editor_app)
-			no_files_action.setEnabled(False)
-			editor_app.recent_files_menu.addAction(no_files_action)
-		else:
-			editor_app.recent_files_menu.addSeparator()
-			action = editor_app.recent_files_menu.addAction("Clear recent files")
-			action.triggered.connect(editor_app.action_clear_recent_files)
-
 	menu_bar = editor_app.menuBar()
-	create_menu_bar(menu_bar)
-	editor_app.recent_files_changed.connect(update_recent_files_menu)
-	update_recent_files_menu()
+	editor_app.create_menu_bar(menu_bar)
+	editor_app.plugins_action.triggered.connect(open_plugin_settings)
 
 	loaded = settings.value("active_plugins", [])
 	if isinstance(loaded, str):
@@ -109,15 +76,7 @@ def main():
 	for name in loaded:
 		plugin_manager.activate(name, editor_app)
 
-	settings_menu = menu_bar.addMenu("Settings")
-	action_zoom_in = settings_menu.addAction("Zoom In", editor_app.zoom_in)
-	action_zoom_in.setShortcut(QKeySequence.ZoomIn)
-	action_zoom_out = settings_menu.addAction("Zoom Out", editor_app.zoom_out)
-	action_zoom_out.setShortcut(QKeySequence.ZoomOut)
-	settings_menu.addSeparator()
-	settings_menu.addAction("Plugins", open_plugin_settings)
-
-	app.focusChanged.connect(editor_app.tab_panel.on_app_focus_changed)
+	app.focusChanged.connect(editor_app.on_app_focus_changed)
 
 	editor_app.show()
 	app_exit_code = app.exec_()
