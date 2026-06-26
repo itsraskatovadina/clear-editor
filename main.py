@@ -71,7 +71,9 @@ def main():
 	editor_app.plugins_action.triggered.connect(open_plugin_settings)
 
 	loaded = settings.value("active_plugins", [])
-	if isinstance(loaded, str):
+	if loaded is None:
+		loaded = []
+	elif isinstance(loaded, str):
 		loaded = [loaded]
 	for name in loaded:
 		plugin_manager.activate(name, editor_app)
