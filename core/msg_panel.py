@@ -16,7 +16,8 @@ class MsgPanel(QTabWidget):
         self.msg_box = QTextEdit(self)
         self.msg_box.setReadOnly(True)
         self.view_box = QTextEdit(self)
-
+        self.view_box.setReadOnly(True)
+        
         self.addTab(self.err_box, "Err")
         self.addTab(self.msg_box, "Msg")
         self.addTab(self.view_box, "View")

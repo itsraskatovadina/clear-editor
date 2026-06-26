@@ -170,4 +170,4 @@ class EditorApp(QMainWindow):
 		if operation in ['Opened', 'Saved as', 'Reload']:
 			self.add_recent_file(fname)
 			self.recent_files_changed.emit()
-
+			
