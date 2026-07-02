@@ -1,0 +1,22 @@
+Тесты
+=====
+
+tests/test_document.py
+----------------------
+Проверяет Document: ctor, modified (через QTextDocument), content,
+load/save файлов, save_as, is_externally_modified.
+Нужен QApplication (для QTextDocument), но окно не показывается.
+Запуск: PYTHONPATH=. python tests/test_document.py
+
+tests/test_file_tab_model.py
+----------------------------
+Проверяет FileTabModel: add, set/get current, remove.
+Чистый Python, без Qt. Можно запускать без дисплея.
+Запуск: PYTHONPATH=. python tests/test_file_tab_model.py
+
+tests/test_file_tab_srv.py
+--------------------------
+Визуальный тест FileTabSrv: окно QMainWindow с FileTabView + меню.
+Позволяет вручную проверить создание/открытие/сохранение/закрытие
+вкладок, перемещение, external modification.
+Запуск: PYTHONPATH=. python tests/test_file_tab_srv.py

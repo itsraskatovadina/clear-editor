@@ -13,3 +13,8 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 include = ["core", "core.*", "plugins_service", "plugins_service.*"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

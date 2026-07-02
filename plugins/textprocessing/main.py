@@ -10,52 +10,93 @@ class TextProcessingPlugin(PluginBase):
     description = "Обработка текста в редакторе"
 
     actions = [
-        {'id': "remove_empty", 'text': "Remove empty lines",
-         'callback': "remove_empty_lines_in_selected"},
-        {'id': "capitalize_first", 'text': "Capitalize first letters",
-         'callback': "capitalize_first_letters_in_selected"},
-        {'id': "replace_entity", 'text': "Replace entity",
-         'callback': "replace_entity_in_selected"},
-        {'id': "wrap_p", 'text': "Wrap <p>", 'short_text': "<p>",
-         'callback': "wrap_p_in_selected"},
-        {'id': "wrap_b", 'text': "Wrap <b>", 'short_text': "<b>",
-         'callback': "wrap_b_in_selected"},
-        {'id': "unwrap", 'text': "Unwrap",
-         'callback': "unwrap_in_selected"},
-        {'id': "make_list", 'text': "Make list", 'short_text': "<ul>",
-         'callback': "make_list_in_selected"},
-        {'id': "make_nested_list", 'text': "Nested list", 'short_text': "<ul+>",
-         'callback': "make_nested_list_in_selected"},
-        {'id': "make_table", 'text': "Make table",
-         'callback': "make_table_in_selected"},
+        {
+            "id": "remove_empty",
+            "text": "Remove empty lines",
+            "callback": "remove_empty_lines_in_selected",
+        },
+        {
+            "id": "capitalize_first",
+            "text": "Capitalize first letters",
+            "callback": "capitalize_first_letters_in_selected",
+        },
+        {
+            "id": "replace_entity",
+            "text": "Replace entity",
+            "callback": "replace_entity_in_selected",
+        },
+        {
+            "id": "wrap_p",
+            "text": "Wrap <p>",
+            "short_text": "<p>",
+            "callback": "wrap_p_in_selected",
+        },
+        {
+            "id": "wrap_b",
+            "text": "Wrap <b>",
+            "short_text": "<b>",
+            "callback": "wrap_b_in_selected",
+        },
+        {"id": "unwrap", "text": "Unwrap", "callback": "unwrap_in_selected"},
+        {
+            "id": "make_list",
+            "text": "Make list",
+            "short_text": "<ul>",
+            "callback": "make_list_in_selected",
+        },
+        {
+            "id": "make_nested_list",
+            "text": "Nested list",
+            "short_text": "<ul+>",
+            "callback": "make_nested_list_in_selected",
+        },
+        {
+            "id": "make_table",
+            "text": "Make table",
+            "callback": "make_table_in_selected",
+        },
     ]
 
     index_actions = {}
     for i in actions:
         i["kind"] = "action"
-        index_actions[i['id']] = i
+        index_actions[i["id"]] = i
 
     menu_items = [
-        {'kind': "menu", 'text': "Edit", 'content': [
-            index_actions['remove_empty'],
-            index_actions['capitalize_first'],
-            {'kind': "separator"},
-            {'kind': "menu", 'text': "HTML", 'content': [
-                index_actions['wrap_p'],
-                index_actions['wrap_b'],
-                index_actions['unwrap'],
-                index_actions['make_list'],
-                index_actions['make_nested_list'],
-                index_actions['make_table']
-            ]}
-            ]
-        }]
+        {
+            "kind": "menu",
+            "text": "Edit",
+            "content": [
+                index_actions["remove_empty"],
+                index_actions["capitalize_first"],
+                {"kind": "separator"},
+                {
+                    "kind": "menu",
+                    "text": "HTML",
+                    "content": [
+                        index_actions["wrap_p"],
+                        index_actions["wrap_b"],
+                        index_actions["unwrap"],
+                        index_actions["make_list"],
+                        index_actions["make_nested_list"],
+                        index_actions["make_table"],
+                    ],
+                },
+            ],
+        }
+    ]
 
     toolbar_items = [
-        {**index_actions['wrap_p'], 'text': index_actions['wrap_p']['short_text']},
-        {**index_actions['wrap_b'], 'text': index_actions['wrap_b']['short_text']},
-        {**index_actions['make_list'], 'text': index_actions['make_list']['short_text']},
-        {**index_actions['make_nested_list'], 'text': index_actions['make_nested_list']['short_text']},
+        {**index_actions["wrap_p"], "text": index_actions["wrap_p"]["short_text"]},
+        {**index_actions["wrap_b"], "text": index_actions["wrap_b"]["short_text"]},
+        {
+            **index_actions["make_list"],
+            "text": index_actions["make_list"]["short_text"],
+        },
+        {
+            **index_actions["make_nested_list"],
+            "text": index_actions["make_nested_list"]["short_text"],
+        },
     ]
 
     def on_load(self, editor):
@@ -78,7 +119,9 @@ class TextProcessingPlugin(PluginBase):
         cursor.endEditBlock()
 
         cursor.setPosition(cursor.position() - len(out_text))
-        cursor.setPosition(cursor.position() + len(out_text), QTextCursor.MoveMode.KeepAnchor)
+        cursor.setPosition(
+            cursor.position() + len(out_text), QTextCursor.MoveMode.KeepAnchor
+        )
         editor_widget.setTextCursor(cursor)
         return True
 
@@ -97,21 +140,20 @@ class TextProcessingPlugin(PluginBase):
 
     def replace_entity_in_selected(self):
         self.selectedTextProcessing(
-            lambda text: text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            lambda text: (
+                text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            )
         )
 
     def wrap_p_in_selected(self):
         self.selectedTextProcessing(
             lambda text: "\n".join(
-                f"<p>{line}</p>" if line.strip() else line
-                for line in text.split("\n")
+                f"<p>{line}</p>" if line.strip() else line for line in text.split("\n")
             )
         )
 
     def wrap_b_in_selected(self):
-        self.selectedTextProcessing(
-            lambda text: f"<b>{text}</b>"
-        )
+        self.selectedTextProcessing(lambda text: f"<b>{text}</b>")
 
     def unwrap_in_selected(self):
         def unwrap(text):
@@ -124,8 +166,9 @@ class TextProcessingPlugin(PluginBase):
             tag_name = text[1:end_open].split()[0]
             closing = f"</{tag_name}>"
             if text.endswith(closing):
-                return text[end_open + 1:-len(closing)]
+                return text[end_open + 1 : -len(closing)]
             return text
+
         self.selectedTextProcessing(unwrap)
 
     def make_list_in_selected(self):
@@ -135,16 +178,17 @@ class TextProcessingPlugin(PluginBase):
                 return text
             lis = "\n".join(f"    <li>{item}</li>" for item in items)
             return f"<ul>\n{lis}\n</ul>"
+
         self.selectedTextProcessing(to_list)
 
     @staticmethod
     def _indent_depth(raw):
-        normalized = raw.replace('\t', '    ')
+        normalized = raw.replace("\t", "    ")
         return len(normalized) // 4
 
     def make_nested_list_in_selected(self):
         def to_nested_list(text):
-            lines = [line for line in text.split('\n') if line.strip()]
+            lines = [line for line in text.split("\n") if line.strip()]
             if not lines:
                 return text
 
@@ -152,7 +196,7 @@ class TextProcessingPlugin(PluginBase):
             stack = []
             for line in lines:
                 stripped = line.lstrip()
-                raw = line[:len(line) - len(stripped)]
+                raw = line[: len(line) - len(stripped)]
                 depth = TextProcessingPlugin._indent_depth(raw)
                 node = [stripped, []]
                 while stack and stack[-1][0] >= depth:
@@ -165,20 +209,21 @@ class TextProcessingPlugin(PluginBase):
 
             def render(children, depth):
                 out = []
-                indent = '\t' * depth
+                indent = "\t" * depth
                 for text, grandchildren in children:
                     if grandchildren:
-                        out.append(f'{indent}<li>{text}\t<ul>')
+                        out.append(f"{indent}<li>{text}\t<ul>")
                         out.extend(render(grandchildren, depth + 1))
-                        out.append(f'{indent}</ul></li>')
+                        out.append(f"{indent}</ul></li>")
                     else:
-                        out.append(f'{indent}<li>{text}</li>')
+                        out.append(f"{indent}<li>{text}</li>")
                 return out
 
-            result = ['<ul>']
+            result = ["<ul>"]
             result.extend(render(root_children, 1))
-            result.append('</ul>')
-            return '\n'.join(result)
+            result.append("</ul>")
+            return "\n".join(result)
+
         self.selectedTextProcessing(to_nested_list)
 
     def make_table_in_selected(self):
@@ -193,4 +238,5 @@ class TextProcessingPlugin(PluginBase):
                 trs.append(f"        <tr>\n{tds}\n        </tr>")
             body = "\n".join(trs)
             return f"<table>\n{body}\n    </table>"
+
         self.selectedTextProcessing(to_table)

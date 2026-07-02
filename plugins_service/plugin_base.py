@@ -7,22 +7,22 @@ from PyQt5.QtWidgets import QWidget
 
 
 class PluginBase(QObject):
-	name: str = ""
-	description: str = ""
-	actions: List[dict] = []
-	menu_items: List[dict] = []
-	toolbar_items: List[dict] = []
-	status_fields: Dict[str, dict] = {}
-	dock_area = Qt.BottomDockWidgetArea
+    name: str = ""
+    description: str = ""
+    actions: List[dict] = []
+    menu_items: List[dict] = []
+    toolbar_items: List[dict] = []
+    status_fields: Dict[str, dict] = {}
+    dock_area = Qt.BottomDockWidgetArea
 
-	def on_load(self, editor):
-		pass
+    def on_load(self, editor):
+        pass
 
-	def on_unload(self):
-		pass
+    def on_unload(self):
+        pass
 
-	def create_dock_widget(self, parent=None) -> Optional[QWidget]:
-		return None
+    def create_dock_widget(self, parent=None) -> Optional[QWidget]:
+        return None
 
-	def create_toolbar_widget(self, parent=None) -> Optional[QWidget]:
-		return None
+    def create_toolbar_widget(self, parent=None) -> Optional[QWidget]:
+        return None
