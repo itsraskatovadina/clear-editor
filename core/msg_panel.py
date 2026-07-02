@@ -17,14 +17,18 @@ class MsgPanel(QTabWidget):
         self.msg_box.setReadOnly(True)
         self.view_box = QTextEdit(self)
         self.view_box.setReadOnly(True)
-        
+
         self.addTab(self.err_box, "Err")
         self.addTab(self.msg_box, "Msg")
         self.addTab(self.view_box, "View")
         self.setTabPosition(QTabWidget.West)
         self.setUsesScrollButtons(True)
         self.setCurrentIndex(0)
-        self.app = QApplication.instance() if (QApplication.instance() is not None) else QApplication(sys.argv)
+        self.app = (
+            QApplication.instance()
+            if (QApplication.instance() is not None)
+            else QApplication(sys.argv)
+        )
 
         self.new_error.connect(self._display_error)
 
@@ -34,16 +38,16 @@ class MsgPanel(QTabWidget):
         self.app.beep()
 
     def new_message(self, msg, sender=None, msgtype=None):
-        colors = {'debug': 'gray', 'info': 'blue', 'warning': 'orange', 'error': 'red'}
-        color = colors.get(msgtype, 'blue')
+        colors = {"debug": "gray", "info": "blue", "warning": "orange", "error": "red"}
+        color = colors.get(msgtype, "blue")
         prefix = f"[{sender}] " if sender else ""
         self.msg_box.append(f"<span style='color: {color};'>{prefix}{msg}</span>")
         self.setCurrentWidget(self.msg_box)
         self.app.beep()
 
-    def new_view(self, text, text_type='plain'):
+    def new_view(self, text, text_type="plain"):
         self.view_box.clear()
-        if text_type == 'html':
+        if text_type == "html":
             self.view_box.setHtml(text)
         else:
             self.view_box.setPlainText(text)
