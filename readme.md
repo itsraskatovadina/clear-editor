@@ -1,57 +1,116 @@
 # ClearEditor
 
-A multi-tab text editor built with Python and PyQt5. Open, edit, and save multiple files simultaneously with HTML syntax highlighting, tag auto-completion, and a plugin system.
+Многостраничный текстовый редактор с поддержкой вкладок, подсветкой синтаксиса HTML, системой плагинов и отслеживанием внешних изменений файлов.
 
-![PyQt5](https://img.shields.io/badge/PyQt5-5.15-blue)
-![Python](https://img.shields.io/badge/Python-3.6+-green)
+[🇬🇧 English version](README.en.md) | [🇷🇺 Русская версия](README.md)
+---
 
-## Features
+## 📚 О проекте
 
-- **Tabbed interface** with drag-movable tabs
-- **HTML syntax highlighting** and tag auto-completion (`<p>`, `<div>`, `<a>`, etc.)
-- **Plugin system** — built-in word counter and text processing
-- **External modification detection** — warns when a file changed outside the editor
-- **Session persistence** — restores open files, window geometry, and recent files on restart
-- **Zoom In / Zoom Out** — global font size adjustment
-- **Message panel** — stderr capture and message logging
+**ClearEditor** — это учебный проект, созданный для демонстрации принципов архитектуры ПО на практике. Он показывает эволюцию кода от простой "монолитной" структуры к чистой, тестируемой и расширяемой архитектуре с выделенным сервисным слоем.
 
-## Quick start
+Проект разработан на **Python** с использованием **PyQt5** и предназначен для изучения на простом примере технологий разработки и содержит минимум предметной и программной логики
+
+---
+
+## ✨ Возможности
+
+- **Вкладки** — открывайте, редактируйте и сохраняйте несколько файлов одновременно
+- **Система плагинов** — встроенные плагины: подсчёт слов, обработка текста
+- **Сохранение сессии** — восстановление открытых файлов, геометрии окна и недавних файлов при перезапуске
+- **Панель сообщений** — перехват stderr и логирование
+- **Подсветка синтаксиса HTML** и автодополнение тегов
+- **Отслеживание внешних изменений** — предупреждение при изменении файла внешними программами
+
+---
+
+## 🚀 Быстрый старт
+
+### Установка зависимостей
 
 ```bash
 pip install PyQt5
+```
+
+### Запуск
+
+```bash
 python main.py
 ```
 
-Requires `config.json` in the working directory:
+### Конфигурация
+
+В рабочей директории требуется файл `config.json`:
 
 ```json
 {"plugins_dir": "plugins"}
 ```
 
-## Project layout
+---
 
-| Directory | Contents |
-|---|---|
-| `core/` | Main window, tab panel, file editor, message panel |
-| `plugins/` | Plugin packages (`manifest.json` + entry script) |
-| `plugins_service/` | Plugin manager, base class, enable/disable dialog |
-| `tests/` | Manual visual test scripts |
-| `specifications/` | Russian-language requirement specs |
-| `icons/` | Application icons |
+## 📁 Структура проекта
 
-## Plugins
+В настоящий момент идет рефакторинг проекта, структура может меняться.
 
-Enable/disable at **Settings > Plugins**. Built-in plugins:
+| Директория | Содержание |
+|------------|-----------|
+| `core/` | Главное окно, панель вкладок, редактор файлов, панель сообщений |
+| `plugins/` | Плагины (wordcount, textprocessing, iclear) |
+| `plugins_service/` | Менеджер плагинов, базовый класс, диалог управления |
+| `tests/` | Тесты |
+| `docs/` | Документация |
 
-- **wordcount** — shows word count in the status bar
-- **textprocessing** — adds a Text menu with "Remove empty lines" and "Capitalize first letters"
+---
 
-## Tests
+## 🏗️ Архитектура
 
-Tests are standalone PyQt windows for manual visual inspection:
+Проект построен по **трёхуровневой архитектуре**:
+
+1. **Presentation Layer (core/)** — GUI-компоненты, только отображение данных
+2. **Business Logic Layer (services/)** — вся бизнес-логика, независима от PyQt
+3. **Data Layer (models/)** — простые объекты-данные (dataclass)
+
+Подробное описание архитектуры доступно в документе:
+👉 [Архитектура проекта](docs/architecture.ru.html)
+
+---
+
+## 🔌 Плагины
+
+Включить/отключить плагины можно в **Настройки → Плагины**.
+
+### Встроенные плагины
+
+- **wordcount** — показывает количество слов в статусной строке
+- **textprocessing** — добавляет меню "Текст" с операциями:
+  - Удалить пустые строки
+  - Сделать первые буквы заглавными
+
+---
+
+## 🧪 Тестирование
+
+### Автоматические тесты
 
 ```bash
-python tests/test_file_edit.py
-python tests/test_tab_panel.py
-python tests/test_msg_panel.py
+pytest tests/
 ```
+
+---
+
+## 📄 Лицензия
+
+Проект создан в образовательных целях и может свободно использоваться для обучения.
+
+---
+
+## ✍️ Автор
+
+**itsraskatovadina**
+
+---
+
+## 🌟 Благодарности
+
+Проект вдохновлён идеей показать начинающим разработчикам, как эволюционирует архитектура ПО от "просто работающего" кода к "правильному" и поддерживаемому.
+Особая благодарность разработчикам сервисов opencode и deepseek, без ваших ассистентов этот проект бы не состоялся.

@@ -1,0 +1,194 @@
+---
+title: ClearEditor v2.0 — Class Diagram (MVS Architecture)
+---
+
+classDiagram
+    direction TB
+
+    %% ======================== MODELS (pure Python) ========================
+    class Document {
+        +file_path: Optional[Path]
+        +encoding: str
+        +last_file_mtime: datetime
+        -_qdoc: QTextDocument
+        +title: str (property)
+        +full_title: str (property)
+        +modified: bool (property)
+        +content: str (property)
+        +bind(qdoc)
+        +load() str
+        +save()
+        +save_as(path)
+        +is_externally_modified() bool
+    }
+
+    class FileTabModel {
+        -_documents: List[Document]
+        -_current_index: int
+        +count: int (property)
+        +current_index: int (property)
+        +current() Document | None
+        +at(index) Document | None
+        +add(path) Document
+        +remove(index) bool
+        +set_current(index)
+    }
+
+    %% ======================== VIEWS (Qt widgets) ========================
+    class FileTabView {
+        <<QTabWidget>>
+        +close_requested: pyqtSignal(int)
+        +current_changed: pyqtSignal(int)
+        +tab_moved: pyqtSignal(int, int)
+        +add_editor_tab(widget, title, tooltip) int
+        +set_tab(index, text, tooltip)
+        +remove_editor_tab(index)
+        +editor_at(index) QWidget
+    }
+
+    class EditorWidget {
+        <<QWidget>>
+        +modification_changed: pyqtSignal()
+        +cursor_position_changed: pyqtSignal(int)
+        +editor: ExtEditor
+        +set_text(text)
+        +set_focus()
+        +document() QTextDocument
+    }
+
+    class ExtEditor {
+        <<QTextEdit>>
+        +highlighter: HtmlHighlighter
+        +autocompletion_tags: list
+        +keyPressEvent(event)
+    }
+
+    class HtmlHighlighter {
+        <<QSyntaxHighlighter>>
+        +highlightBlock(text)
+    }
+
+    %% ======================== SERVICE (business logic) ========================
+    class FileTabSrv {
+        <<QObject>>
+        +editor_state_changed: pyqtSignal(str, str, str, str)
+        +message: pyqtSignal(str, str, str)
+        +line_changed: pyqtSignal(int)
+        -_view: FileTabView
+        -_model: FileTabModel
+        -_editor_class: type
+        -_widgets: List[EditorWidget]
+        +new_tab()
+        +add_tab(path)
+        +close_tab(index, close_last_tab) bool
+        +close_all_tab()
+        +open_file()
+        +current_tab_save()
+        +current_tab_save_as()
+        +current_tab_close()
+        +current_tab_reload()
+        +get_open_files() list
+        +current_editor() ExtEditor
+        +on_app_focus_changed(old, now)
+    }
+
+    %% ======================== APPLICATION (orchestrator) ========================
+    class EditorApp {
+        <<QMainWindow>>
+        +recent_files_changed: pyqtSignal()
+        +file_tab_view: FileTabView
+        +file_tab_srv: FileTabSrv
+        +msg_panel: MsgPanel
+        +line_label: QLabel
+        -config: dict
+        -settings: QSettings
+        +load_config()
+        +closeEvent(event)
+        +zoom_in()
+        +zoom_out()
+        +set_tab_panel()
+        +create_menu_bar(menu_bar)
+        +on_message(msg, sender, msgtype)
+        +on_error(msg)
+        +on_editor_state_changed(name, fname, mod_label, operation)
+        +on_app_focus_changed(old, now)
+    }
+
+    class MsgPanel {
+        <<QTabWidget>>
+        +new_error: pyqtSignal(str)
+        +err_box: QTextEdit
+        +msg_box: QTextEdit
+        +view_box: QTextEdit
+        +new_message(msg, sender, msgtype)
+        +new_view(text, text_type)
+    }
+
+    class ErrorHandler {
+        +original_stderr: TextIO
+        +write(message)
+        +flush()
+    }
+
+    %% ======================== PLUGINS ========================
+    class PluginManager {
+        <<QObject>>
+        -_available: Dict[str, dict]
+        -_active: Dict[str, PluginBase]
+        -_active_ui: Dict[str, dict]
+        +discover() list
+        +activate(name, editor) PluginBase
+        +deactivate(name)
+        +get_available() list
+        +get_all_active() dict
+    }
+
+    class PluginBase {
+        <<QObject>>
+        +name: str
+        +description: str
+        +menu_items: list
+        +toolbar_items: list
+        +status_fields: dict
+        +on_load(editor)
+        +on_unload()
+        +create_dock_widget(parent) QWidget
+    }
+
+    class PluginWidget {
+        <<QDialog>>
+        +list_plugins: QListView
+        +get_selected_names() set
+    }
+
+    %% ======================== INHERITANCE ========================
+    QMainWindow <|-- EditorApp
+    QTabWidget <|-- FileTabView
+    QTabWidget <|-- MsgPanel
+    QWidget <|-- EditorWidget
+    QTextEdit <|-- ExtEditor
+    QSyntaxHighlighter <|-- HtmlHighlighter
+    QObject <|-- FileTabSrv
+    QObject <|-- PluginManager
+    QObject <|-- PluginBase
+    QDialog <|-- PluginWidget
+
+    %% ======================== COMPOSITION ========================
+    EditorApp *-- FileTabView : owns
+    EditorApp *-- FileTabSrv : owns
+    EditorApp *-- MsgPanel : owns
+    FileTabSrv *-- FileTabModel : owns
+    FileTabSrv *-- EditorWidget : owns per tab
+    FileTabModel *-- Document : contains list
+    EditorWidget *-- ExtEditor : contains
+    ExtEditor *-- HtmlHighlighter : contains
+    MsgPanel *-- ErrorHandler : uses
+    PluginManager *-- PluginBase : manages lifecycle
+
+    %% ======================== SIGNAL CONNECTIONS ========================
+    FileTabView ..> FileTabSrv : close_requested, current_changed, tab_moved >
+    EditorWidget ..> FileTabSrv : modification_changed, cursor_position_changed >
+    FileTabSrv ..> EditorApp : editor_state_changed, message, line_changed >
+    EditorApp ..> MsgPanel : on_message >
+    ErrorHandler ..> MsgPanel : new_error >
+    PluginManager ..> EditorApp : activate/deactivate UI >
