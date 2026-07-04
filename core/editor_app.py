@@ -10,7 +10,8 @@ from PyQt5.QtCore import Qt, QPoint, QSize, QSettings, pyqtSignal
 from core.views.file_tab_view import FileTabView
 from core.services.file_tab_srv import FileTabSrv
 from core.views.html_editor_widget import HTMLEditor
-from core.msg_panel import MsgPanel
+from core.views.msg_panel_view import MsgPanelView
+from core.services.message_srv import MessageSrv
 
 
 class ConfigError(Exception):
@@ -33,8 +34,12 @@ class EditorApp(QMainWindow):
         self.file_tab_srv = FileTabSrv(
             self.file_tab_view, editor_class=HTMLEditor, parent=self
         )
-        self.msg_panel = MsgPanel(parent=self)
-        self.file_tab_srv.message.connect(self.on_message)
+        self.msg_panel = MsgPanelView(parent=self)
+        self.msg_srv = MessageSrv(parent=self)
+        self.file_tab_srv.message.connect(self.msg_srv.post_message)
+        self.msg_srv.display_error.connect(self.msg_panel.append_err)
+        self.msg_srv.display_message.connect(self.msg_panel.append_msg)
+        self.msg_srv.message_received.connect(self._ensure_msg_panel_visible)
         self.file_tab_srv.editor_state_changed.connect(self.on_editor_state_changed)
 
         self.splitter = QSplitter(Qt.Vertical)
@@ -212,11 +217,13 @@ class EditorApp(QMainWindow):
         settings_menu.addSeparator()
         self.plugins_action = settings_menu.addAction("Plugins")
 
-    def on_message(self, msg, sender, msgtype):
-        self.msg_panel.new_message(msg, sender, msgtype)
-
     def on_error(self, msg):
-        self.msg_panel.new_error.emit(msg)
+        self.msg_srv.post_message(msg, "System", "error")
+
+    def _ensure_msg_panel_visible(self):
+        sizes = self.splitter.sizes()
+        if len(sizes) > 1 and sizes[1] == 0:
+            self.splitter.setSizes([500, 100])
 
     def on_editor_state_changed(self, name, fname, mod_label, operation):
         dash = "" if name == "" else "- "

@@ -91,12 +91,8 @@ class FileTabSrv(QObject):
 
     def _check_path_exists(self, path):
         if not path.exists():
-            QMessageBox.information(
-                self._view,
-                "no file",
-                "There is no such file or directory",
-                buttons=QMessageBox.Close,
-                defaultButton=QMessageBox.Close,
+            self.message.emit(
+                "There is no such file or directory", "FileTabSrv", "warning"
             )
             return False
         return True

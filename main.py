@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QApplication
 from plugins_service.plugin_manager import PluginManager
 from plugins_service.plugin_widget import PluginWidget
 from core.editor_app import EditorApp, ConfigError
-from core.msg_panel import ErrorHandler
+from core.services.message_srv import ErrorHandler
 
 
 def main():

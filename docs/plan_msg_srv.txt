@@ -1,0 +1,62 @@
+План этапа 1 — MessageSrv
+===========================
+
+Порядок изменений (каждый пункт — отдельный коммит):
+
+1. MessageModel (core/models/message_model.py)
+   - dataclass: text: str, sender: str, msg_type: str, timestamp: datetime
+   - чистый Python, без Qt
+
+2. MessageSrv (core/services/message_srv.py)
+   - QObject
+   - вход: единый слот post_message(text, sender, msg_type)
+   - выход: сигнал display_error(html) и display_message(html)
+   - форматирование: цвет по msg_type, префикс [sender]
+   - сообщения с msg_type="error" → display_error (Err tab + beep)
+   - остальные → display_message (Msg tab)
+   - сигнал message_received() — для splitter
+   - ErrorHandler перенесён сюда из msg_panel (утилита, не UI)
+
+3. MsgPanelView (core/views/msg_panel_view.py)
+   - переименован из core/msg_panel.py, класс MsgPanel → MsgPanelView
+   - очищен от логики: убрать _display_error, new_message, new_view
+   - добавить append_err(html) — err_box.append
+   - добавить append_msg(html) — msg_box.append
+   - добавить show_view(text, text_type) — view_box, переключение таба
+   - убрать new_error signal
+   - убрать self.app (beep теперь в MessageSrv)
+   - ErrorHandler удалён (переехал в message_srv.py)
+
+4. EditorApp — переключить на MessageSrv (core/editor_app.py)
+   - заменить MsgPanel → MsgPanelView
+   - создать self.msg_srv = MessageSrv(parent=self)
+   - self.file_tab_srv.message.connect(self.msg_srv.post_message)
+   - self.on_error → self.msg_srv.post_message(msg, "System", "error")
+   - self.msg_srv.display_error.connect(self.msg_panel.append_err)
+   - self.msg_srv.display_message.connect(self.msg_panel.append_msg)
+   - splitter: msg_srv.message_received.connect(self._ensure_msg_panel_visible)
+   - _ensure_msg_panel_visible: если splitter.sizes()[1] == 0, setSizes([500, 100])
+
+5. main.py — исправить импорт: ErrorHandler из message_srv, а не из msg_panel
+
+6. Тесты (tests/models/)
+
+   MessageModel — unit, без Qt:
+   - test_default_values — текст пустой, sender="", msg_type="info"
+   - test_custom_values — все поля заданы явно
+   - test_timestamp_is_datetime — timestamp создаётся
+
+   MessageSrv — integration, нужен QApplication:
+   - test_info_routes_to_display_message — post_message("text", msg_type="info") → display_message
+   - test_error_routes_to_display_error — post_message("text", msg_type="error") → display_error
+   - test_message_received_emitted — signal emitted on any message
+
+   FileTabSrv._check_path_exists — изменение:
+   - существующий тест test_add_tab_with_file работает без QMessageBox.info
+   - можно добавить тест с несуществующим путём
+
+7. Проверка
+   - открыть редактор
+   - открыть/сохранить/закрыть файл — сообщения в Msg
+   - сгенерировать ошибку — сообщение в Err, beep
+   - закрыть msg_panel сплиттером → при новом сообщении панель открывается
