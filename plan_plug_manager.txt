@@ -1,0 +1,70 @@
+План этапа 2 — PluginManager
+==============================
+
+Текущая проблема: PluginManager (232 строки) смешивает 3 ответственности:
+1. Хранение состояния (_available, _active, _active_ui)
+2. Загрузка плагинов (discover, importlib, activate)
+3. Генерация UI (меню, тулбары, доки, статус-бар)
+
+Порядок изменений (каждый пункт — отдельный коммит):
+
+1. PluginRegistry (plugins_service/models/plugin_registry.py)
+   - чистый Python, без Qt
+   - хранение: available (dict[name, manifest]), active (dict[name, PluginBase]), active_ui (dict[name, ui_state])
+   - методы: register, unregister, is_active, get_active, get_available, get_all_active
+   - тестируемый (как FileTabModel)
+
+2. PluginLoader (plugins_service/services/plugin_loader.py)
+   - QObject
+   - сигналы: plugin_loaded(str), plugin_error(str, str)
+   - discover(plugins_dir) — поиск manifest.json, заполнение Registry
+   - load(name, registry) — importlib, возвращает PluginBase
+   - deactivate(name, registry) — вызов on_unload, очистка Registry
+
+3. PluginUI (plugins_service/views/plugin_ui.py)
+   - QObject
+   - build_menu(editor, plugin, registry) — создание/обновление меню
+   - build_toolbar(editor, plugin) — создание тулбара
+   - build_dock(editor, plugin) — создание док-виджета
+   - build_status_fields(editor, plugin) — создание label в статус-баре
+   - remove_ui(name, registry) — удаление всех UI-элементов плагина
+   - create_action / create_ui_from_actions — вспомогательные методы (переедут сюда)
+
+4. PluginManager — фасад (plugins_service/plugin_manager.py)
+   - остаётся тонкая обёртка для совместимости с main.py
+   - делегирует: registry, loader, ui
+   - activate → loader.load + ui.build_*
+   - deactivate → ui.remove_ui + loader.deactivate
+   - discover → loader.discover
+
+5. PluginWidget (plugins_service/plugin_widget.py)
+   - конструктор: вместо available (list[dict]) принимает registry
+   - _populate: registry.get_available() вместо self._available
+   - get_selected_names — без изменений
+   - вёрстка диалога не меняется
+
+6. main.py — изменения
+   - PluginManager создаётся, но main.py может обращаться напрямую к registry
+   - open_plugin_settings:
+       было: plugin_manager.get_available()
+       стало: registry.get_available()
+     (через фасад или напрямую — registry доступен)
+   - создание registry, loader, ui перед PluginManager:
+       registry = PluginRegistry()
+       loader = PluginLoader()
+       ui = PluginUI()
+       manager = PluginManager(registry, loader, ui, editor_app)
+
+7. Тесты (tests/services/test_plugin_loader.py, tests/models/test_plugin_registry.py)
+   - PluginRegistry — unit, без Qt:
+     - test_empty
+     - test_register_and_get_available
+     - test_activate_deactivate
+   - PluginLoader — integration, нужен QApplication:
+     - test_discover_with_real_plugins_dir
+   - PluginUI — visual (требует EditorApp)
+
+7. Проверка
+   - main.py → редактор запускается
+   - плагины из settings загружаются (TextProcessing, HTMLProcessing, iclear)
+   - PluginWidget открывается, плагины вкл/выкл
