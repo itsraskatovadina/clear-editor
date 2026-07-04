@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, QPoint, QSize, QSettings, pyqtSignal
 
 from core.views.file_tab_view import FileTabView
 from core.services.file_tab_srv import FileTabSrv
-from core.views.ext_editor_widget import ExtEditor
+from core.views.html_editor_widget import HTMLEditor
 from core.msg_panel import MsgPanel
 
 
@@ -31,7 +31,7 @@ class EditorApp(QMainWindow):
 
         self.file_tab_view = FileTabView(parent=self)
         self.file_tab_srv = FileTabSrv(
-            self.file_tab_view, editor_class=ExtEditor, parent=self
+            self.file_tab_view, editor_class=HTMLEditor, parent=self
         )
         self.msg_panel = MsgPanel(parent=self)
         self.file_tab_srv.message.connect(self.on_message)

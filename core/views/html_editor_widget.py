@@ -38,7 +38,7 @@ class HtmlHighlighter(QSyntaxHighlighter):
                 self.setFormat(match.capturedStart(), match.capturedLength(), fmt)
 
 
-class ExtEditor(QTextEdit):
+class HTMLEditor(QTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
 

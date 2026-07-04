@@ -50,13 +50,13 @@ classDiagram
         <<QWidget>>
         +modification_changed: pyqtSignal()
         +cursor_position_changed: pyqtSignal(int)
-        +editor: ExtEditor
+        +editor: HTMLEditor
         +set_text(text)
         +set_focus()
         +document() QTextDocument
     }
 
-    class ExtEditor {
+    class HTMLEditor {
         <<QTextEdit>>
         +highlighter: HtmlHighlighter
         +autocompletion_tags: list
@@ -88,7 +88,7 @@ classDiagram
         +current_tab_close()
         +current_tab_reload()
         +get_open_files() list
-        +current_editor() ExtEditor
+        +current_editor() HTMLEditor
         +on_app_focus_changed(old, now)
     }
 
@@ -166,7 +166,7 @@ classDiagram
     QTabWidget <|-- FileTabView
     QTabWidget <|-- MsgPanel
     QWidget <|-- EditorWidget
-    QTextEdit <|-- ExtEditor
+    QTextEdit <|-- HTMLEditor
     QSyntaxHighlighter <|-- HtmlHighlighter
     QObject <|-- FileTabSrv
     QObject <|-- PluginManager
@@ -180,8 +180,8 @@ classDiagram
     FileTabSrv *-- FileTabModel : owns
     FileTabSrv *-- EditorWidget : owns per tab
     FileTabModel *-- Document : contains list
-    EditorWidget *-- ExtEditor : contains
-    ExtEditor *-- HtmlHighlighter : contains
+    EditorWidget *-- HTMLEditor : contains
+    HTMLEditor *-- HtmlHighlighter : contains
     MsgPanel *-- ErrorHandler : uses
     PluginManager *-- PluginBase : manages lifecycle
 

@@ -1,0 +1,223 @@
+РЕКОМЕНДАЦИИ ПО СМЕНЕ СТРУКТУРЫ ПРОЕКТА
+=========================================
+Дата: 2026-07-02
+Контекст: Завершён рефакторинг TabPanel+FileEditor → FileTabView+FileTabSrv+FileTabModel+EditorWidget.
+Планируется отделять логику от вью в остальных компонентах.
+
+Текущая проблема: плоская core/ уже содержит 8 файлов разной природы (models, views, services,
+app — всё вперемешку). При рефакторинге MsgPanel, PluginManager, ExtEditor, EditorApp количество
+файлов удвоится, и плоская структура перестанет быть навигабельной.
+
+РЕКОМЕНДАЦИЯ 1: СУБПАКЕТЫ core/models/, core/views/, core/services/
+-------------------------------------------------------------------
+Перейти от плоской core/ к трём субпакетам по архитектурной роли:
+
+core/
+  __init__.py
+  editor_app.py              ← QMainWindow (остаётся точкой сборки)
+  models/
+    __init__.py
+    document.py              ← Document (уже есть)
+    file_tab_model.py         ← FileTabModel (уже есть)
+    message_model.py          ← новая модель сообщений для MsgPanel
+    plugin_registry.py        ← новая модель: состояние всех плагинов
+  views/
+    __init__.py
+    editor_widget.py          ← EditorWidget (уже есть)
+    file_tab_view.py          ← FileTabView (уже есть)
+    ext_editor.py             ← ExtEditor + HtmlHighlighter (перенести)
+    msg_panel_view.py         ← MsgPanel как чистая view (переименовать)
+  services/
+    __init__.py
+    file_tab_srv.py           ← FileTabSrv (уже есть)
+    config_service.py         ← вынести из EditorApp: load/save config
+    session_service.py        ← вынести из EditorApp: open_files restore
+    zoom_service.py           ← вынести из EditorApp: zoom_in/zoom_out
+    msg_srv.py                ← новая логика маршрутизации сообщений
+
+Плюсы:
+- Файл ищется по роли за 1 шаг (models/* → данные, views/* → UI, services/* → логика)
+- Модули не нужно переименовывать — меняется только путь импорта
+- Чёткий контракт: models/ не импортируют Qt, services/ импортируют Qt только через сигналы
+
+Минусы:
+- Много __init__.py (можно оставить пустыми)
+- Импорты станут длиннее: from core.models.file_tab_model import FileTabModel
+
+РЕКОМЕНДАЦИЯ 2: plugins_service/ — АНАЛОГИЧНОЕ РАЗДЕЛЕНИЕ
+------------------------------------------------------------
+Сейчас PluginManager смешивает 3 ответственности:
+  1. Обнаружение и загрузка плагинов (логика)
+  2. Хранение состояния (модель)
+  3. Генерация UI (меню, тулбары, док-виджеты)
+
+Предлагаемая структура:
+
+plugins_service/
+  __init__.py
+  plugin_base.py              ← PluginBase (оставить как есть)
+  plugin_registry.py          ← МОДЕЛЬ: словари _available, _active, _active_ui
+  plugin_loader.py            ← СЕРВИС: discover, load_module, instantiate
+  plugin_ui.py                ← VIEW: _setup_ui — генерация menu/toolbar/dock/status
+  plugin_manager.py           ← ФАСАД: PluginManager — тонкая обёртка, делегирует трём выше
+  plugin_widget.py            ← PluginWidget — переписать: вынести логику в модель
+
+Принцип:
+- PluginRegistry — чистый Python, тестируемый (как FileTabModel)
+- PluginLoader — QObject с сигналами plugin_loaded, plugin_error
+- PluginUI — QObject, создаёт QMenu/QToolBar/QDockWidget по данным из Registry
+- PluginManager — фасад, сохраняет обратную совместимость для EditorApp и main.py
+
+РЕКОМЕНДАЦИЯ 3: EditorApp — ВЫНЕСТИ SESSION, CONFIG, ZOOM
+------------------------------------------------------------
+EditorApp удерживает:
+- load_config / save_config           → ConfigService
+- restore_settings / closeEvent       → SessionService
+- zoom_in / zoom_out / zoom_reset     → ZoomService
+
+После выноса EditorApp становится тонким оркестратором:
+  EditorApp
+    ├── FileTabView          (view)
+    ├── FileTabSrv           (service) → FileTabModel (model) + EditorWidget[] (view)
+    ├── MsgPanel             (view, обновлённый)
+    ├── MsgSrv               (service) → MessageModel (model)
+    ├── ConfigService        (service)
+    ├── SessionService       (service)
+    ├── ZoomService          (service)
+    └── PluginManager → [PluginRegistry, PluginLoader, PluginUI]
+
+РЕКОМЕНДАЦИЯ 4: КОНВЕНЦИИ ИМЕНОВАНИЯ
+---------------------------------------
+Зафиксировать правила для всей кодовой базы:
+
+Суффикс     | Роль                    | Qt?      | Пример
+------------|-------------------------|----------|-----------------------
+*Model      | данные + бизнес-правила | НЕТ      | FileTabModel
+*View       | Qt-виджет, только UI    | ДА       | FileTabView
+*Srv        | логика, сигналы, связь  | ДА       | FileTabSrv
+*Widget     | мелкий UI-компонент     | ДА       | EditorWidget
+*Service    | инфраструктура/конфиг   | ДА/НЕТ   | ConfigService
+Document    | единица данных          | НЕТ      | Document
+
+Исключения (исторические):
+- EditorApp — не переименовывать (AppView? — ломает все импорты)
+- ExtEditor — по факту уже view, оставить как есть при переносе в views/
+
+РЕКОМЕНДАЦИЯ 5: TEST-СБОРКА ДЛЯ НОВЫХ МОДЕЛЕЙ
+-------------------------------------------------
+Продолжить практику авто-assert тестов без Qt:
+
+tests/
+  test_document.py           ← уже есть
+  test_file_tab_model.py     ← уже есть
+  test_message_model.py      ← новый: pytest-стиль
+  test_plugin_registry.py    ← новый: pytest-стиль
+  test_file_tab_srv.py       ← visual (требует QApplication)
+  test_msg_panel.py          ← visual
+
+Паттерн для service-тестов: передавать mock-view.
+Для FileTabSrv это уже сделано? Нет — но можно через инъекцию FileTabView.
+
+РЕКОМЕНДАЦИЯ 6: ПОРЯДОК РЕФАКТОРИНГА ОСТАВШИХСЯ КОМПОНЕНТОВ
+---------------------------------------------------------------
+1. MsgPanel — самый простой и независимый (нет внешних зависимостей)
+   → MessageModel (dataclass: text, type, timestamp)
+   → MsgSrv (фильтрация, буферизация, маршрутизация)
+   → MsgPanelView (чистый QTabWidget)
+
+2. ExtEditor — вынести конфигурацию автокомплита
+   → TagCompletionsModel (список тегов + атрибутов)
+   → HtmlHighlighter остаётся привязанным к ExtEditor (это нормально)
+
+3. PluginManager — разделить на Registry + Loader + UI
+   → PluginRegistry (модель: dict[name, PluginMeta])
+   → PluginLoader (сервис: importlib, сигналы ошибок)
+   → PluginUI (view: построитель меню/тулбаров/доков)
+
+4. EditorApp — вынос Config/Session/Zoom сервисов
+   → ConfigService (читает/пишет config.json)
+   → SessionService (читает/пишет QSettings open_files)
+   → ZoomService (управляет QFont приложения)
+
+5. iclear-плагин — перевести на FileTabSrv API
+   → editor.tab_panel → editor.file_tab_srv / editor.file_tab_view
+
+РЕКОМЕНДАЦИЯ 7: dependency injection ВМЕСТО ПРЯМОГО СОЗДАНИЯ
+---------------------------------------------------------------
+Сейчас EditorApp создаёт всё сам (new file_tab_view, new file_tab_srv, ...).
+При росте числа сервисов это приведёт к жёсткой связанности.
+
+Предлагается: передавать зависимости через конструктор EditorApp, а не создавать внутри.
+
+Было:
+  self.file_tab_view = FileTabView(parent=self)
+  self.file_tab_srv = FileTabSrv(self.file_tab_view, editor_class=ExtEditor)
+
+Стало (опционально):
+  app = QApplication(sys.argv)
+  config = ConfigService('config.json')
+  msg_model = MessageModel()
+  msg_view = MsgPanelView()
+  msg_srv = MsgSrv(msg_model, msg_view)
+  tab_view = FileTabView()
+  tab_srv = FileTabSrv(tab_view, editor_class=ExtEditor)
+  editor = EditorApp(tab_view, tab_srv, msg_view, msg_srv, config)
+  editor.show()
+
+Этот подход:
+- Упрощает тестирование (можно подставить mock)
+- Делает граф зависимостей явным
+- Не требует синглтонов или глобального состояния
+
+ИТОГ: НОВАЯ СТРУКТУРА ПРОЕКТА (ЦЕЛЕВАЯ)
+------------------------------------------
+clear_editor/
+├── main.py                     ← только bootstrap (QApplication + DI-сборка)
+├── core/
+│   ├── __init__.py
+│   ├── editor_app.py           ← QMainWindow-оркестратор
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── document.py
+│   │   ├── file_tab_model.py
+│   │   ├── message_model.py
+│   │   └── plugin_registry.py
+│   ├── views/
+│   │   ├── __init__.py
+│   │   ├── editor_widget.py
+│   │   ├── file_tab_view.py
+│   │   ├── ext_editor_widget.py ← переименован из ext_editor.py
+│   │   └── msg_panel_view.py   ← переименован из msg_panel.py
+│   └── services/
+│       ├── __init__.py
+│       ├── file_tab_srv.py
+│       ├── msg_srv.py
+│       ├── config_service.py
+│       ├── session_service.py
+│       └── zoom_service.py
+├── plugins_service/
+│   ├── __init__.py
+│   ├── plugin_base.py          ← базовый класс (framework contract)
+│   ├── models/
+│   │   └── plugin_registry.py  ← модель: состояние плагинов
+│   ├── services/
+│   │   ├── plugin_loader.py    ← сервис: обнаружение/загрузка
+│   │   └── plugin_manager.py   ← фасад для EditorApp
+│   └── views/
+│       ├── plugin_ui.py        ← генерация меню/тулбаров/доков
+│       └── plugin_widget.py    ← QDialog списка плагинов
+├── plugins/
+│   ├── textprocessing/
+│   ├── htmlprocessing/
+│   └── iclear/                 ← требует доработки под новое API
+├── tests/
+│   ├── test_document.py
+│   ├── test_file_tab_model.py
+│   ├── test_message_model.py   ← новый
+│   ├── test_plugin_registry.py ← новый
+│   ├── test_file_tab_srv.py
+│   └── test_msg_panel.py
+├── ver1.0/                     ← удалена
+├── docs/
+├── specifications/
+└── icons/

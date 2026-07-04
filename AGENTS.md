@@ -25,10 +25,9 @@ python main.py             # launch editor
 | `main.py` | Entrypoint — bootstraps EditorApp, PluginManager, menu bar |
 | `core/editor_app.py` | `QMainWindow` — splitter with FileTabView + MsgPanel, status bar |
 | `core/models/` | Data models (Document, FileTabModel, etc.) — pure Python, no Qt |
-| `core/views/` | UI widgets (FileTabView, EditorWidget, ExtEditorWidget, etc.) |
+| `core/views/` | UI widgets (FileTabView, EditorWidget, HtmlEditorWidget, etc.) |
 | `core/services/` | Business logic (FileTabSrv, etc.) — QObject with signals |
 | `core/msg_panel.py` | `QTabWidget` with Err/Msg tabs + `ErrorHandler` (redirects stderr) |
-| `plugins_service/` | Plugin manager, base class, and enable/disable dialog (models/services/views subpackages) |
 | `plugins_service/` | Plugin manager, base class, and enable/disable dialog (models/services/views subpackages) |
 | `plugins/` | Plugin packages — each folder has `manifest.json` + entry script |
 
@@ -46,17 +45,13 @@ Built-in plugins: `wordcount` (status-bar word counter), `textprocessing` (Text 
 
 ## Tests
 
-**No test framework.** Test scripts are standalone PyQt `QApplication` windows launched for manual visual inspection:
+**No test framework.** Model tests run with assertions and print pass/fail. Visual tests use standalone PyQt windows.
 
 ```bash
-python tests/test_file_edit.py        # ver1.0 style — visual
-python tests/test_tab_panel.py        # ver1.0 style — visual
-python tests/test_msg_panel.py        # ver1.0 style — visual
 python tests/test_document.py         # Document model — auto-assert (needs display)
 python tests/test_file_tab_model.py   # FileTabModel — auto-assert (pure Python, no Qt)
 python tests/test_file_tab_srv.py     # FileTabSrv — visual test window
 ```
-Model tests (`test_document.py`, `test_file_tab_model.py`) run with assertions and print pass/fail.
 Run from project root: `PYTHONPATH=. python tests/…`
 
 ## Key conventions
@@ -64,8 +59,7 @@ Run from project root: `PYTHONPATH=. python tests/…`
 - **Window icon**: `icons/clear.svg`. Test scripts may reference `icons/clear_test.jpg` or `icons/clear1.jpg`.
 - **Recent files**: capped at 10, persisted via QSettings.
 - **Config `config.json`**: must contain at least `{"plugins_dir": "plugins"}`.
-- **readme.md** contains stale references (outdated repo name `cleanmain`, file name `cleanmain.py`).
-- **`specifications/`**: Russian-language requirement specs — descriptive, not executable.
+- **`docs/specifications/`**: Russian-language requirement specs — descriptive, not executable.
 - All imports use the repo-root package layout (e.g. `from core.editor_app import EditorApp`).
 - Язык переговоров и отчётов по умолчанию — русский.
 - Комментарии в коде писать на английском.

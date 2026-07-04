@@ -22,7 +22,7 @@ class FileTabSrv(QObject):
         self._editor_class = editor_class
         self._model = FileTabModel()
         self._widgets = []
-        self._no_process_tab_change = False
+        self._programmatic_change = False
         self._focus_check_disabled = False
 
         self._view.close_requested.connect(self._on_close_requested)
@@ -44,9 +44,9 @@ class FileTabSrv(QObject):
         if path:
             for i, doc in enumerate(self._model._documents):
                 if doc.file_path == path:
-                    self._no_process_tab_change = True
+                    self._programmatic_change = True
                     self._view.setCurrentIndex(i)
-                    self._no_process_tab_change = False
+                    self._programmatic_change = False
                     self._model.set_current(i)
                     fname = str(path)
                     self.message.emit(
@@ -72,10 +72,10 @@ class FileTabSrv(QObject):
         else:
             operation = "New"
 
-        self._no_process_tab_change = True
+        self._programmatic_change = True
         index = self._view.add_editor_tab(ew, doc.title, doc.full_title)
         self._view.setCurrentIndex(index)
-        self._no_process_tab_change = False
+        self._programmatic_change = False
         self._model.set_current(index)
 
         self.editor_state_changed.emit(doc.title, doc.full_title, "", operation)
@@ -281,7 +281,7 @@ class FileTabSrv(QObject):
         self._model.set_current(self._view.currentIndex())
 
     def _on_current_changed(self, index):
-        if self._no_process_tab_change:
+        if self._programmatic_change:
             return
         ew = self._widgets[index] if 0 <= index < len(self._widgets) else None
         if ew:

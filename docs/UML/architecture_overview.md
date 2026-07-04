@@ -9,7 +9,7 @@
 | **Структура `core/`** | плоская: все файлы в одной папке | разбита на `models/`, `views/`, `services/` |
 | **Модели данных** | вперемешку с Qt-кодом | чистый Python, нет зависимости от Qt |
 | **Логика вкладок** | в `TabPanel` (наследник `QTabWidget`) | разделена: `FileTabView` (UI) + `FileTabSrv` (логика) + `FileTabModel` (данные) |
-| **Редактор** | `FileEditor` (содержит `ExtEditor`) | `EditorWidget` (содержит `ExtEditor`) — отделён от модели |
+| **Редактор** | `FileEditor` (содержит `HTMLEditor`) | `EditorWidget` (содержит `HTMLEditor`) — отделён от модели |
 | **Тесты** | только ручные, визуальные | добавились модульные (assert-based) для моделей |
 
 ---
@@ -42,7 +42,7 @@
 │  │  Для каждой вкладки:    │                                │
 │  │  ┌──────────────────┐   │                                │
 │  │  │  EditorWidget    │   │                                │
-│  │  │  ├─ ExtEditor    │   │                                │
+│  │  │  ├─ HTMLEditor    │   │                                │
 │  │  │  │  ├─ HtmlHL    │   │                                │
 │  │  │  └─ Document     │   │                                │
 │  │  └──────────────────┘   │                                │
@@ -62,9 +62,9 @@
 ## Поток данных (на примере печати текста)
 
 ```
-1. Пользователь печатает "Hello" в ExtEditor
+1. Пользователь печатает "Hello" в HTMLEditor
        │
-2. ExtEditor испускает cursorPositionChanged
+2. HTMLEditor испускает cursorPositionChanged
        │
 3. EditorWidget пересылает как cursor_position_changed
        │
@@ -74,7 +74,7 @@
        │
    И одновременно:
        │
-   ExtEditor.document().modificationChanged
+   HTMLEditor.document().modificationChanged
        │
    EditorWidget.modification_changed
        │
