@@ -1,0 +1,189 @@
+План этапа 4 — EditorApp: вынос Config/Session/Zoom сервисов
+=============================================================
+
+Текущая проблема: EditorApp (~160 строк) удерживает 3 ответственности:
+1. Загрузка/сохранение config.json, QSettings (geometry, font, recent_files, open_files)
+2. Управление зумом (zoom_in/zoom_out)
+3. Восстановление open_files при старте (set_tab_panel)
+
+Попутный баг: в текущем коде `set_tab_panel` определён дважды —
+новый (строки 94-103) переопределён старым (строки 162-176, читает QSettings напрямую).
+Старый вариант надо удалить.
+
+Что сделано
+-----------
+
+### 1. ConfigService (core/services/config_service.py) — НОВЫЙ
+
+Чистый класс (не QObject, хотя использует QSettings):
+- конструктор: `__init__(path="config.json")` — загружает config.json в `self.config`,
+  создаёт QSettings в `self.settings`
+- ConfigError — исключение при отсутствии/битом config.json
+- get / get_ui_defaults — доступ к config
+- restore_window_geometry / save_window_geometry
+- restore_font_size / save_font_size
+- restore_recent_files / save_recent_files
+- restore_open_files / save_open_files
+- sync — проброс QSettings.sync()
+
+### 2. ZoomService (core/services/zoom_service.py) — НОВЫЙ
+
+QObject:
+- конструктор: `__init__(target, parent=None)` — target = любой QWidget
+- zoom_in — увеличить шрифт target на +1
+- zoom_out — уменьшить, min 6
+
+### 3. EditorApp — изменения
+
+load_config():
+  было: прямой json.load + QSettings в 40+ строках
+  стало: делегирует ConfigService (10 строк)
+
+closeEvent():
+  было: прямой QSettings.setValue × 6 блоков
+  стало: cs.save_* + cs.sync()
+
+zoom_in / zoom_out:
+  было: прямой self.font() / self.setFont()
+  стало: self._zoom_service.zoom_in/out
+
+set_tab_panel (новая версия, строка 94):
+  было: self.settings.beginReadArray("open_files")
+  стало: cs.restore_open_files()
+
+add_recent_file, action_open_recent_file, action_clear_recent_files,
+_update_recent_files_menu, current_editor, current_file_name,
+get_status_bar, get_menu_bar, create_menu_bar, on_error,
+_ensure_msg_panel_visible, on_editor_state_changed, on_app_focus_changed
+  — БЕЗ ИЗМЕНЕНИЙ (обратная совместимость)
+
+Схема делегирования
+-------------------
+
+Было:
+  EditorApp (всё сам)
+    ├── load_config (json + QSettings)
+    ├── closeEvent (QSettings.save)
+    ├── set_tab_panel (QSettings restore_open_files)
+    ├── zoom_in / zoom_out (self.font)
+    └── add_recent_file / recent_files (список + QSettings)
+
+Стало:
+  EditorApp (тонкий оркестратор)
+    ├── self._config_service  →  ConfigService
+    │     ├── config.json
+    │     ├── QSettings (geometry, font, recent, open)
+    │     └── sync()
+    ├── self._zoom_service  →  ZoomService(target=self)
+    │     ├── zoom_in()
+    │     └── zoom_out()
+    └── [своё]: add_recent_file, recent_files_menu, сигналы
+
+Совместимость: EditorApp сохраняет self.config, self.settings, self.recent_files
+как публичные атрибуты (ссылкм на ConfigService.config/settings).
+
+Текущее состояние
+-----------------
+
+- core/services/config_service.py — создан, не закоммичен
+- core/services/zoom_service.py — создан, не закоммичен
+- core/editor_app.py — изменён, не закоммичен
+- core/services/session_service.py — НЕ создан (session-функции внутри ConfigService)
+
+Файлы проекта на текущий момент:
+
+core/
+  __init__.py
+  editor_app.py
+  models/
+    __init__.py
+    file_tab_models.py
+    html_editor_model.py
+    message_model.py
+  views/
+    __init__.py
+    editor_widget.py
+    file_tab_view.py
+    html_editor_widget.py
+    msg_panel_view.py
+  services/
+    __init__.py
+    config_service.py         ← NEW
+    file_tab_srv.py
+    message_srv.py
+    zoom_service.py           ← NEW
+
+Предложение по следующему этапу: iclear plugin
+==============================================
+
+### Проблема
+
+Плагин iclear использует старое API `editor.tab_panel`, которого больше нет:
+
+- `main.py` строка 17: `self._editor.tab_panel.tab_added` — сигнал не существует
+- `main.py` строка 26: `self._editor.tab_panel.currentChanged` → `file_tab_view.currentChanged`
+- `main.py` строка 30: `self._editor.tab_panel.widget(index)` → виджеты больше
+  не имеют `.path` (теперь это EditorWidget без path)
+- `wiclear.py` строка 255: `self.parent.tab_panel.add_tab(Path(...))` → add_tab
+  теперь в FileTabSrv
+
+### Варианты решений
+
+**A. Через editor_state_changed (рекомендуется)**
+
+FileTabSrv испускает `editor_state_changed(title, full_title, mod_label, operation)`
+при смене/открытии/закрытии вкладки. `full_title` = path файла.
+
+Плагин подключается к сигналу, фильтрует `operation in ("tab_changed", "Opened", "Reload")`,
+передаёт `full_title` в `IclearWidget.fill_from_page_path()`.
+
+Для open_page: передать в IclearWidget колбэк `editor.file_tab_srv.add_tab`.
+
+Плюсы: не требует новых методов, минимум изменений.
+Минусы: нет доступа к документу по произвольному индексу (iclear и так работает
+только с текущей вкладкой).
+
+**B. С новым методом FileTabSrv.document_at(index)**
+
+Добавить в FileTabSrv публичный метод `document_at(index: int) → Optional[Document]`,
+который пробрасывает `_model.at(index)`.
+
+Плагин подключается к `file_tab_view.currentChanged[int]` и получает Document
+по индексу, из которого берёт `file_path`.
+
+Плюсы: прямой доступ к любому документу.
+Минусы: изменение FileTabSrv, дополнительный публичный метод.
+
+### Что изменить в плагине iclear
+
+1. **main.py**:
+   - `on_unload`: `tab_panel.tab_added.disconnect` → убрать мёртвый код
+   - `create_toolbar_widget`: `tab_panel.currentChanged` → `file_tab_srv.editor_state_changed`
+   - `_on_current_tab_changed(index)` → `_on_tab_changed(title, full_title, ...)`
+   - добавить `_sync_from_current_tab()` для инициализации при старте
+   - передать колбэк editor.file_tab_srv.add_tab в IclearWidget
+
+2. **wiclear.py — IclearWidget**:
+   - принять  `open_file_cb` в конструкторе
+   - `open_page`: `self.parent.tab_panel.add_tab` → `self._open_file_cb(path)`
+
+3. **Проверка**:
+   - после рефакторинга — ручная проверка:
+     - iclear тулбар отображается
+     - навигация по дереву работает
+     - открытие страницы из iclear открывает вкладку
+     - при переключении вкладок дерево синхронизируется
+
+### После iclear: межплагинная связь
+
+master_plan (Rec 6, шаг 5):
+iclear → htmlprocessing.validate_html — проверка каждого файла из списка.
+
+После рефакторинга iclear это становится возможным:
+- `plugin_manager.get_active("htmlprocessing")` возвращает экземпляр HTMLProcessingPlugin
+- вызов `html_plugin.validate_html(file_path)` — результат в Msg/View
+
+Порядок:
+1. Рефакторинг iclear plugin
+2. Проверка межплагинной связи (ручная)
+3. Если надо — тест iclear → htmlprocessing.validate_html
