@@ -12,6 +12,7 @@
 - Шаг 3 ✅ Формат декларации UI — выбран Вариант B (строковые id, см. plan_plug_manager.txt)
 - Шаг 4 ✅ PluginUI (plugins_service/views/plugin_ui.py) — создан, новый формат (Вариант B)
 - Шаг 5 ✅ PluginManager — фасад (plugins_service/plugin_manager.py) — делегирует Registry/Loader/UI
+- Шаг 6 ✅ PluginWidget — принимает registry вместо list[dict]
 
 ## Новая структура plugins_service/ на текущий момент
 ```

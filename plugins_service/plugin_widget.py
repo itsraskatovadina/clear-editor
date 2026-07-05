@@ -11,12 +11,12 @@ from PyQt5.QtWidgets import (
 
 
 class PluginWidget(QDialog):
-    def __init__(self, available, active_names, parent=None):
+    def __init__(self, registry, active_names, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Plugin Manager")
         self.resize(300, 400)
 
-        self._available = available
+        self._registry = registry
         self._active_names = active_names.copy()
 
         layout = QVBoxLayout(self)
@@ -34,7 +34,7 @@ class PluginWidget(QDialog):
         self._populate()
 
     def _populate(self):
-        for plugin in self._available:
+        for plugin in self._registry.get_available():
             item = QStandardItem(plugin["name"])
             item.setData(plugin["name"], Qt.UserRole)
             item.setToolTip(plugin.get("description", ""))

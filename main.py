@@ -56,7 +56,7 @@ def main():
             selected = [selected]
 
         dialog = PluginWidget(
-            plugin_manager.get_available(),
+            registry,
             set(selected),
             editor_app,
         )
