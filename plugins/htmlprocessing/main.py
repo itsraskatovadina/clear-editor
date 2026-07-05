@@ -2,7 +2,6 @@
 
 import re
 
-from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QTextCursor
 from PyQt5.QtWidgets import QDialog, QListWidget, QVBoxLayout, QHBoxLayout, QPushButton
 
@@ -72,7 +71,6 @@ class ValErrorsDialog(QDialog):
 class HTMLProcessingPlugin(PluginBase):
     name = "htmlprocessing"
     description = "Обработка HTML кода в редакторе"
-    message = pyqtSignal(str, str, str)
 
     actions = [
         {
@@ -108,14 +106,12 @@ class HTMLProcessingPlugin(PluginBase):
 
     def on_load(self, editor):
         self._editor = editor
-        self.message.connect(editor.on_message)
 
     def on_unload(self):
-        try:
-            self.message.disconnect(self._editor.on_message)
-        except TypeError:
-            pass
         self._editor = None
+
+    def _post(self, text, msg_type="info"):
+        self._editor.msg_srv.post_message(text, self.__class__.__name__, msg_type)
 
     def gen_content_list(self, start_head_level=1, pass_nocontents=False):
         editor = self._editor.current_editor()
@@ -160,17 +156,15 @@ class HTMLProcessingPlugin(PluginBase):
             raw_headings = [h for h in raw_headings if not h["nocontents"]]
 
         if not raw_headings:
-            self._editor.msg_panel.new_view(
+            self._editor.msg_panel.show_view(
                 "<i>No headings found in the document.</i>", "html"
             )
             return
 
         for h in raw_headings:
             if h["id"] is None:
-                self.message.emit(
+                self._post(
                     f"header in the {h['row']} row has no anchor.",
-                    self.__class__.__name__,
-                    "info",
                 )
 
         class Node:
@@ -222,7 +216,7 @@ class HTMLProcessingPlugin(PluginBase):
             html_lines.extend(render(child, 1))
         html_lines.append("</ul>")
 
-        self._editor.msg_panel.new_view("\n".join(html_lines))
+        self._editor.msg_panel.show_view("\n".join(html_lines))
 
     def validate_html(self):
         editor = self._editor.current_editor()
@@ -235,7 +229,7 @@ class HTMLProcessingPlugin(PluginBase):
         clean = re.sub(r"<!--[\s\S]*?-->", "", clean)
 
         if not re.search(r"<[a-zA-Z/!]", clean):
-            self.message.emit(f"File has no tags.", self.__class__.__name__, "info")
+            self._post(f"File has no tags.")
             return
 
         tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>")
@@ -276,7 +270,7 @@ class HTMLProcessingPlugin(PluginBase):
             )
 
         if not errors:
-            self.message.emit(f"No errors in {fname}.", self.__class__.__name__, "info")
+            self._post(f"No errors in {fname}.")
         else:
             dialog = ValErrorsDialog(errors, editor, self.validate_html, self._editor)
             self._val_dialog = dialog

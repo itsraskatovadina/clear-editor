@@ -7,6 +7,9 @@ from PyQt5.QtWidgets import QApplication
 
 from plugins_service.plugin_manager import PluginManager
 from plugins_service.plugin_widget import PluginWidget
+from plugins_service.models.plugin_registry import PluginRegistry
+from plugins_service.services.plugin_loader import PluginLoader
+from plugins_service.views.plugin_ui import PluginUI
 from core.editor_app import EditorApp, ConfigError
 from core.services.message_srv import ErrorHandler
 
@@ -24,8 +27,12 @@ def main():
 
     editor_app.set_tab_panel()
 
+    registry = PluginRegistry()
+    loader = PluginLoader()
+    ui = PluginUI()
     plugin_manager = PluginManager(
-        editor_app, plugins_dir=editor_app.config["plugins_dir"]
+        registry, loader, ui,
+        parent=editor_app, plugins_dir=editor_app.config["plugins_dir"]
     )
     settings = editor_app.settings
 
