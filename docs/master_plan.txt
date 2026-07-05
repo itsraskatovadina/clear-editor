@@ -5,7 +5,7 @@
 Планируется отделять логику от вью в остальных компонентах.
 
 Текущая проблема: плоская core/ уже содержит 8 файлов разной природы (models, views, services,
-app — всё вперемешку). При рефакторинге MsgPanel, PluginManager, ExtEditor, EditorApp количество
+app — всё вперемешку). При рефакторинге MsgPanel, PluginManager, HTMLEditor, EditorApp количество
 файлов удвоится, и плоская структура перестанет быть навигабельной.
 
 РЕКОМЕНДАЦИЯ 1: СУБПАКЕТЫ core/models/, core/views/, core/services/
@@ -25,7 +25,7 @@ core/
     __init__.py
     editor_widget.py          ← EditorWidget (уже есть)
     file_tab_view.py          ← FileTabView (уже есть)
-    ext_editor.py             ← ExtEditor + HtmlHighlighter (перенести)
+    html_editor_widget.py     ← HTMLEditor + HtmlHighlighter
     msg_panel_view.py         ← MsgPanel как чистая view (переименовать)
   services/
     __init__.py
@@ -101,7 +101,7 @@ Document    | единица данных          | НЕТ      | Document
 
 Исключения (исторические):
 - EditorApp — не переименовывать (AppView? — ломает все импорты)
-- ExtEditor — по факту уже view, оставить как есть при переносе в views/
+- HTMLEditor — по факту уже view, оставить как есть при переносе в views/
 
 РЕКОМЕНДАЦИЯ 5: TEST-СБОРКА ДЛЯ НОВЫХ МОДЕЛЕЙ
 -------------------------------------------------
@@ -125,9 +125,9 @@ tests/
    → MsgSrv (фильтрация, буферизация, маршрутизация)
    → MsgPanelView (чистый QTabWidget)
 
-2. ExtEditor — вынести конфигурацию автокомплита
+2. HTMLEditor — вынести конфигурацию автокомплита
    → TagCompletionsModel (список тегов + атрибутов)
-   → HtmlHighlighter остаётся привязанным к ExtEditor (это нормально)
+   → HtmlHighlighter остаётся привязанным к HTMLEditor (это нормально)
 
 3. PluginManager — разделить на Registry + Loader + UI
    → PluginRegistry (модель: dict[name, PluginMeta])
@@ -141,6 +141,8 @@ tests/
 
 5. iclear-плагин — перевести на FileTabSrv API
    → editor.tab_panel → editor.file_tab_srv / editor.file_tab_view
+   После этой доработки проверить межплагинную связь:
+   iclear → htmlprocessing.validate_html (отложено до завершения рефакторинга)
 
 РЕКОМЕНДАЦИЯ 7: dependency injection ВМЕСТО ПРЯМОГО СОЗДАНИЯ
 ---------------------------------------------------------------
@@ -151,7 +153,7 @@ tests/
 
 Было:
   self.file_tab_view = FileTabView(parent=self)
-  self.file_tab_srv = FileTabSrv(self.file_tab_view, editor_class=ExtEditor)
+  self.file_tab_srv = FileTabSrv(self.file_tab_view, editor_class=HTMLEditor)
 
 Стало (опционально):
   app = QApplication(sys.argv)
@@ -160,7 +162,7 @@ tests/
   msg_view = MsgPanelView()
   msg_srv = MsgSrv(msg_model, msg_view)
   tab_view = FileTabView()
-  tab_srv = FileTabSrv(tab_view, editor_class=ExtEditor)
+  tab_srv = FileTabSrv(tab_view, editor_class=HTMLEditor)
   editor = EditorApp(tab_view, tab_srv, msg_view, msg_srv, config)
   editor.show()
 

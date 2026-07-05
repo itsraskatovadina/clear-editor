@@ -4,6 +4,8 @@ from PyQt5.QtCore import QRegularExpression, Qt
 from PyQt5.QtGui import QSyntaxHighlighter, QTextCursor, QTextCharFormat, QColor, QFont
 from PyQt5.QtWidgets import QTextEdit
 
+from core.models.html_editor_model import TagCompletionsModel
+
 
 class HtmlHighlighter(QSyntaxHighlighter):
     tag_format = QTextCharFormat()
@@ -39,28 +41,11 @@ class HtmlHighlighter(QSyntaxHighlighter):
 
 
 class HTMLEditor(QTextEdit):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, completions: TagCompletionsModel = None):
         super().__init__(parent)
 
         self.highlighter = HtmlHighlighter(self.document())
-        self.autocompletion_tags = [
-            "p",
-            "b",
-            "div",
-            "span",
-            "a",
-            "ul",
-            "li",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "table",
-            "tr",
-            "td",
-        ]
+        self._completions = completions or TagCompletionsModel()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Greater and self.hasFocus():
@@ -76,7 +61,7 @@ class HTMLEditor(QTextEdit):
             if not tag_candidate or tag_candidate.startswith("/"):
                 super().keyPressEvent(event)
                 return
-            if tag_candidate in self.autocompletion_tags:
+            if self._completions.is_valid_tag(tag_candidate):
                 cursor.insertText(">")
                 closing_tag = f"</{tag_candidate}>"
                 cursor.insertText(closing_tag)
