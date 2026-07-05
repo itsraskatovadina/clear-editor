@@ -1,0 +1,68 @@
+СЕРВИС СООБЩЕНИЙ — MessageSrv + MsgPanelView
+===============================================
+
+1. НАЗНАЧЕНИЕ
+--------------
+Три потока сообщений, каждый в свою вкладку:
+
+| Поток | Назначение | Вкладка |
+|---|---|---|
+| неперехваченные (uncaught) | ошибки вне try/except, stderr | Err (err_box) |
+| штатные (handled) | info, debug, warning, error в try/except | Msg (msg_box) |
+| сгенерированный текст | результаты обработки/валидации от плагинов | View (view_box) |
+
+2. ПОТОКИ СООБЩЕНИЙ
+--------------------
+
+   stderr → ErrorHandler → MessageSrv.post_message(msg, "System", "error")
+                              ↓
+                          display_error сигнал → MsgPanelView.append_err()
+                              ↓
+                          вкладка Err (err_box)
+
+   Любой код → MessageSrv.post_message(text, sender, msg_type)
+                  ↓
+              display_message сигнал → MsgPanelView.append_msg()
+                  ↓
+              вкладка Msg (msg_box)
+
+   Плагины и любой код → MessageSrv.post_message(text, sender, msg_type)
+                            ↓
+                        display_message сигнал → MsgPanelView.append_msg()
+
+   MsgPanelView.show_view(text, text_type) — только для сгенерированного текста,
+   который не нужно вставлять в редактор (результаты обработки, валидации и т.п.)
+               ↓
+           вкладка View (view_box) — очищается перед показом
+
+3. MessageSrv (core/services/message_srv.py)
+----------------------------------------------
+- QObject, без UI
+- post_message(text, sender="", msg_type="info") — единый вход
+- msg_type = "error" → display_error.emit(html)
+- msg_type = "info"|"debug"|"warning" → display_message.emit(html)
+- Формат HTML: <span style='color: {color};'>[sender] text</span>
+- Цвета: debug=gray, info=blue, warning=orange, error=red
+- Сигнал message_received() — для авто-открытия панели
+
+4. MsgPanelView (core/views/msg_panel_view.py)
+------------------------------------------------
+- QTabWidget, три вкладки: Err, Msg, View (слева, West)
+- Все QTextEdit, только чтение
+- append_err(html) — добавляет в err_box, переключает на Err
+- append_msg(html) — добавляет в msg_box, переключает на Msg
+- show_view(text, text_type) — очищает view_box, показывает текст/HTML
+
+5. ErrorHandler (core/services/message_srv.py)
+-------------------------------------------------
+- Подменяет sys.stderr: пишет и в original_stderr, и в handle
+- write(message), flush() — duck-typed как файловый объект
+- handle — callable (обычно editor_app.on_error)
+
+6. СОЕДИНЕНИЕ В EditorApp
+---------------------------
+   file_tab_srv.message → msg_srv.post_message
+   msg_srv.display_error → msg_panel.append_err
+   msg_srv.display_message → msg_panel.append_msg
+   msg_srv.message_received → _ensure_msg_panel_visible
+   on_error → msg_srv.post_message(msg, "System", "error")

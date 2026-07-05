@@ -59,7 +59,7 @@ Run from project root: `PYTHONPATH=. python tests/…`
 - **Window icon**: `icons/clear.svg`. Test scripts may reference `icons/clear_test.jpg` or `icons/clear1.jpg`.
 - **Recent files**: capped at 10, persisted via QSettings.
 - **Config `config.json`**: must contain at least `{"plugins_dir": "plugins"}`.
-- **`docs/specifications/`**: Russian-language requirement specs — descriptive, not executable.
+- **`docs/spec/`**: Актуальные спецификации; `docs/spec/ver1.0/` — архив устаревших.
 - All imports use the repo-root package layout (e.g. `from core.editor_app import EditorApp`).
 - Язык переговоров и отчётов по умолчанию — русский.
 - Комментарии в коде писать на английском.

@@ -6,12 +6,24 @@
 2. Загрузка плагинов (discover, importlib, activate)
 3. Генерация UI (меню, тулбары, доки, статус-бар)
 
+Попутные изменения:
+1. **Межплагинная коммуникация** — плагин может обратиться к другому через
+   `editor.plugin_manager.get_active("Name")`. Реализуется естественно через
+   `PluginRegistry.get_active()` — дополнительного кода не требуется.
+2. **Формат декларации UI** — заменить текущий формат списка словарей на более
+   удобный/стандартный (дизайн — в п. 3).
+3. **variant_tool_submenu** — убрать переключатель, оставить один вариант
+   (InstantPopupArrow).
+
 Порядок изменений (каждый пункт — отдельный коммит):
 
 1. PluginRegistry (plugins_service/models/plugin_registry.py)
    - чистый Python, без Qt
-   - хранение: available (dict[name, manifest]), active (dict[name, PluginBase]), active_ui (dict[name, ui_state])
-   - методы: register, unregister, is_active, get_active, get_available, get_all_active
+   - хранение: available (dict[name, manifest]), active (dict[name, PluginBase]),
+     active_ui (dict[name, ui_state])
+   - методы: register, unregister, is_active, get_active, get_available,
+     get_all_active, list_active
+   - межплагинная связь: `get_active(name)` уже покрывает use-case
    - тестируемый (как FileTabModel)
 
 2. PluginLoader (plugins_service/services/plugin_loader.py)
@@ -21,29 +33,57 @@
    - load(name, registry) — importlib, возвращает PluginBase
    - deactivate(name, registry) — вызов on_unload, очистка Registry
 
-3. PluginUI (plugins_service/views/plugin_ui.py)
+3. **Формат декларации UI** — выбран Вариант B:
+
+   actions — единый словарь {id: config}:
+       actions = {
+           "remove_empty": {"text": "Remove empty lines", "callback": "remove_empty_lines_in_selected"},
+           "wrap_p":       {"text": "Wrap <p>", "callback": "wrap_p_in_selected"},
+       }
+
+   menu_items — ссылки по строковому id:
+       menu_items = [
+           {"menu": "Edit", "items": [
+               "remove_empty",
+               "---",                    # разделитель
+               {"menu": "HTML", "items": ["wrap_p", "wrap_b"]},
+           ]}
+       ]
+
+   toolbar_items — ref + опциональный label:
+       toolbar_items = [
+           {"ref": "remove_empty"},
+           {"ref": "wrap_p", "label": "<p>"},
+       ]
+
+   PluginUI.resolve_actions() — подставляет id → полный dict.
+   `kind`, `index_actions`, копирование {**dict} — удалить из плагинов.
+
+4. PluginUI (plugins_service/views/plugin_ui.py)
    - QObject
    - build_menu(editor, plugin, registry) — создание/обновление меню
    - build_toolbar(editor, plugin) — создание тулбара
    - build_dock(editor, plugin) — создание док-виджета
    - build_status_fields(editor, plugin) — создание label в статус-баре
    - remove_ui(name, registry) — удаление всех UI-элементов плагина
-   - create_action / create_ui_from_actions — вспомогательные методы (переедут сюда)
+   - create_action / create_ui_from_actions — переработать под новый формат (п.3)
+   - variant_tool_submenu: убрать переключатель, оставить InstantPopupArrow
 
-4. PluginManager — фасад (plugins_service/plugin_manager.py)
-   - остаётся тонкая обёртка для совместимости с main.py
+5. PluginManager — фасад (plugins_service/plugin_manager.py)
+   - остаётся тонкая обёртка для совместимости с main.py и плагинами
    - делегирует: registry, loader, ui
    - activate → loader.load + ui.build_*
    - deactivate → ui.remove_ui + loader.deactivate
    - discover → loader.discover
+   - get_active → registry.get_active (для межплагинной связи)
 
-5. PluginWidget (plugins_service/plugin_widget.py)
+6. PluginWidget (plugins_service/plugin_widget.py)
    - конструктор: вместо available (list[dict]) принимает registry
    - _populate: registry.get_available() вместо self._available
    - get_selected_names — без изменений
    - вёрстка диалога не меняется
 
-6. main.py — изменения
+7. main.py — изменения
    - PluginManager создаётся, но main.py может обращаться напрямую к registry
    - open_plugin_settings:
        было: plugin_manager.get_available()
@@ -55,16 +95,18 @@
        ui = PluginUI()
        manager = PluginManager(registry, loader, ui, editor_app)
 
-7. Тесты (tests/services/test_plugin_loader.py, tests/models/test_plugin_registry.py)
-   - PluginRegistry — unit, без Qt:
+8. Тесты
+   - tests/models/test_plugin_registry.py — unit, без Qt:
      - test_empty
      - test_register_and_get_available
      - test_activate_deactivate
-   - PluginLoader — integration, нужен QApplication:
+     - test_get_active_for_inter_plugin
+   - tests/services/test_plugin_loader.py — integration, нужен QApplication:
      - test_discover_with_real_plugins_dir
-   - PluginUI — visual (требует EditorApp)
+   - PluginUI — visual (требует EditorApp) или manual check
 
-7. Проверка
+9. Проверка
    - main.py → редактор запускается
    - плагины из settings загружаются (TextProcessing, HTMLProcessing, iclear)
    - PluginWidget открывается, плагины вкл/выкл
+   - iclear вызывает validate_html из HTMLProcessing (проверка межплагинной связи)
