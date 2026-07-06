@@ -1,7 +1,7 @@
 # Session Status
 
-**Дата:** 2026-07-05
-**Этап:** EditorApp — вынос Config/Zoom сервисов — **сделано, не закоммичено**
+**Дата:** 2026-07-06
+**Этап:** Master plan — **приостановлен**. Доработка main / EditorApp / сервисов.
 
 ## Общий прогресс
 
@@ -10,64 +10,32 @@
 | MsgPanel → MessageSrv + MsgPanelView + MessageModel | ✅ закоммичено |
 | HTMLEditor → TagCompletionsModel | ✅ закоммичено |
 | PluginManager → Registry + Loader + UI | ✅ закоммичено |
-| EditorApp → ConfigService + ZoomService | ✅ сделано, **не закоммичено** |
+| EditorApp → ConfigService + ZoomService | ✅ закоммичено |
 | iclear → FileTabSrv API | ⏸️ отложено |
+| Доработка main / EditorApp / сервисов | 🔄 текущая задача |
 
-## Что сделано за последние сессии
+## Текущая задача
 
-### PluginManager (шаги 1-7) — закоммичено
-- `plugins_service/models/plugin_registry.py` — чистая модель
-- `plugins_service/services/plugin_loader.py` — загрузчик, сигналы
-- `plugins_service/views/plugin_ui.py` — генерация UI (формат Вариант B)
-- `plugins_service/plugin_manager.py` — фасад
-- `plugins_service/plugin_widget.py` — принимает registry
-- `main.py` — DI-сборка
+Доработать main.py, EditorApp и сервисы Config/Zoom по списку из docs/plan_plugins.txt → раздел 5:
 
-### MessageSrv — закоммичено
-- `core/services/message_srv.py` — beep на error/warning, цвет warning `#cc8400`
-- `core/models/message_model.py` — dataclass Message
-
-### HTMLEditor → TagCompletionsModel — закоммичено
-- `core/models/html_editor_model.py` — TagCompletionsModel (pure Python)
-- `core/views/html_editor_widget.py` — использует модель
-- `tests/models/test_html_editor_model.py` — 6 тестов
-
-### EditorApp — ConfigService + ZoomService — **НЕ закоммичено**
-- `core/services/config_service.py` — загрузка config.json, QSettings, геометрия/шрифт/recent/open
-- `core/services/zoom_service.py` — zoom_in/zoom_out для target QWidget
-- `core/editor_app.py` — делегирует ConfigService и ZoomService
-
-### Инфраструктура — закоммичено
-- `plan_plug_manager.txt` → `docs/plan_plug_manager.txt`
-- `plan_editor_app.txt` → `docs/plan_editor_app.txt`
+1. ~~**ZoomService → ThemeService** — переименован ✅, API расширен, DI в main~~
+2. **load_config** разбить на `load_config` (только config.json) + `restore_settings` (QSettings — геометрия, шрифт, recent)
+3. **main.py** — блок redirect uncaught errors перенести сразу перед `set_tab_panel()`
+4. **main.py** — добавить комментарии `# --- ... ---` для визуальной структуры
+5. **main.py** — блок загрузки активных плагинов поместить перед `def open_plugin_settings()`
+6. **main.py** — `registry/loader/ui` → `plugin_registry/plugin_loader/plugin_ui`
+7. **EditorApp** — `create_status_bar()` вынести из `__init__`
 
 ## Текущее состояние (working tree)
 
-```
- M core/editor_app.py              ← изменён, делегирует ConfigService/ZoomService
-?? core/services/config_service.py ← новый, не добавлен в git
-?? core/services/zoom_service.py   ← новый, не добавлен в git
-```
-
-## Известные проблемы
-
-1. **`editor_app.py:set_tab_panel` — дублирование (некритично)**
-   - новая версия (стр. 94) и старая (стр. 162) обе сработают одинаково
-   - старая читает QSettings напрямую — работает, т.к. ConfigService оборачивает тот же QSettings
-   - новый код ConfigService-restore_open_files() — мёртвый, переопределён старым
-   - **Не баг рантайма**, а незавершённый рефакторинг: удалить старый вариант
+Рабочий каталог чистый. Все изменения закоммичены.
 
 ## Документы
 
 | Файл | Описание |
 |------|----------|
-| `docs/master_plan.txt` | Общий план рефакторинга (Rec 1-8) |
-| `docs/plan_plug_manager.txt` | План рефакторинга PluginManager |
-| `docs/plan_editor_app.txt` | План рефакторинга EditorApp + предложение по iclear |
-| `docs/todo.txt` | Хотелки по плагинам (wrap, шаблоны, rename HTMLProcessing) |
-
-## Планы на следующий раз
-
-1. Закоммитить EditorApp (удалить старый `set_tab_panel` сначала)
-2. Рефакторинг iclear plugin на FileTabSrv API
-3. Межплагинная связь: iclear → htmlprocessing.validate_html
+| `docs/master_plan.txt` | Общий план рефакторинга (Rec 1-8) — приостановлен |
+| `docs/plan_plug_manager.txt` | План рефакторинга PluginManager (выполнен) |
+| `docs/plan_editor_app.txt` | План рефакторинга EditorApp |
+| `docs/plan_plugins.txt` | Сводный план по плагинам — приостановлен |
+| `docs/todo.txt` | Хотелки и текущие задачи |

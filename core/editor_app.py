@@ -12,14 +12,14 @@ from core.views.html_editor_widget import HTMLEditor
 from core.views.msg_panel_view import MsgPanelView
 from core.services.message_srv import MessageSrv
 from core.services.config_service import ConfigService, ConfigError
-from core.services.zoom_service import ZoomService
+from core.services.theme_service import ThemeService
 
 
 class EditorApp(QMainWindow):
     win_title = "Text Editor"
     recent_files_changed = pyqtSignal()
 
-    def __init__(self, config_service: ConfigService = None):
+    def __init__(self, config_service: ConfigService = None, theme_service: ThemeService = None):
         super().__init__()
         self.setWindowTitle(EditorApp.win_title)
         self.setWindowIcon(QIcon("icons/clear.svg"))
@@ -27,7 +27,7 @@ class EditorApp(QMainWindow):
         self.settings = None
         self.recent_files = []
         self._config_service = config_service
-        self._zoom_service = None
+        self.theme = theme_service
 
         self.file_tab_view = FileTabView(parent=self)
         self.file_tab_srv = FileTabSrv(
@@ -74,7 +74,6 @@ class EditorApp(QMainWindow):
         self.setFont(QFont("SansSerif", font_size))
 
         self.recent_files = cs.restore_recent_files()
-        self._zoom_service = ZoomService(self, parent=self)
 
     def closeEvent(self, event):
         if self.settings is not None:
@@ -105,12 +104,12 @@ class EditorApp(QMainWindow):
     # --- Zoom ---
 
     def zoom_in(self):
-        if self._zoom_service:
-            self._zoom_service.zoom_in()
+        if self.theme:
+            self.theme.zoom_in()
 
     def zoom_out(self):
-        if self._zoom_service:
-            self._zoom_service.zoom_out()
+        if self.theme:
+            self.theme.zoom_out()
 
     def add_recent_file(self, path):
         if path in self.recent_files:

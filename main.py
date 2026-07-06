@@ -12,6 +12,7 @@ from plugins_service.services.plugin_loader import PluginLoader
 from plugins_service.views.plugin_ui import PluginUI
 from core.editor_app import EditorApp, ConfigError
 from core.services.message_srv import ErrorHandler
+from core.services.theme_service import ThemeService
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
     app.setApplicationName("ClearEditor")
 
     editor_app = EditorApp()
+    editor_app.theme = ThemeService(target=editor_app)
     try:
         editor_app.load_config()
     except ConfigError as e:

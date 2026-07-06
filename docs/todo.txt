@@ -1,12 +1,8 @@
 
-0. ZoomService
-ZoomService переназвать например AppUISetService (рассмотрю твои предложения по названию), там будет другая аналогичная функциональность
-AppUISetService ( бывший ZoomService) должен менять шрифт (фон) сразу для всего приложения
-почему  self._zoom_service = ZoomService(self, parent=self) в load_config?
-
-Предлагаю - AppUISetService ( бывший ZoomService) создавать в main, передавать в EditorApp
+0. ZoomService → ThemeService ✅
+   Переименован в ThemeService, расширен API (set_font, set_font_size, set_background, reset).
+   Создаётся в main, передаётся через editor_app.theme (public attribute).
  
-
 1. main.py
 
 1.1. строки -
