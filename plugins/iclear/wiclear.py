@@ -140,10 +140,11 @@ class WinNodesNav(QWidget):
 
 
 class IclearWidget(QWidget):
-    def __init__(self, nodnav=None, parent=None):
+    def __init__(self, nodnav=None, open_file_cb=None, parent=None):
         QWidget.__init__(self, parent)
 
         self.parent = parent
+        self._open_file_cb = open_file_cb
         if nodnav is None:
             nodnav = self._build_nodnav_from_settings()
         self.winnodnav = WinNodesNav(nodnav=nodnav, parent=self)
@@ -251,8 +252,8 @@ class IclearWidget(QWidget):
     def open_page(self):
         if self.winnodnav.nodnav.page:
             page_path = self.winnodnav.nodnav.page.full_path()
-            if iclib.Tools.check_exists_file(page_path):
-                self.parent.tab_panel.add_tab(Path(page_path))
+            if iclib.Tools.check_exists_file(page_path) and self._open_file_cb:
+                self._open_file_cb(Path(page_path))
                 return True
         return False
 

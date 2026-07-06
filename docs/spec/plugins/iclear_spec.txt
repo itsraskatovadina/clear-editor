@@ -1,0 +1,88 @@
+ПЛАГИН ICLEAR — Навигация по структуре PHP-сайта
+==================================================
+
+1. НАЗНАЧЕНИЕ
+--------------
+Плагин для навигации по файловой структуре PHP-сайта itsclear.ru.
+Предоставляет тулбар с иерархическими списками (host → site → top → man → cat → page)
+для быстрого перехода между страницами сайта и генерации вспомогательного кода.
+
+2. ВЗАИМОДЕЙСТВИЕ С ОСНОВНЫМ ПРИЛОЖЕНИЕМ
+---------------------------------------------
+
+2.1. Жизненный цикл
+
+               PluginManager.activate()
+                         │
+                    on_load(editor) ←── EditorApp
+                         │
+               create_toolbar_widget()
+                         │
+               IclearWidget + подписка на сигнал
+                         │
+               ... работа с плагином ...
+                         │
+               PluginManager.deactivate()
+                         │
+                    on_unload()
+
+2.2. Используемые API EditorApp
+
+  editor.file_tab_srv.add_tab(path: Path)
+    └─ Открытие файла в редакторе (по нажатию "Open" в iclear)
+
+  editor.file_tab_srv.editor_state_changed
+    └─ Сигнал: pyqtSignal(str, str, str, str)
+       (title, full_title, mod_label, operation)
+
+  editor.file_tab_srv.current_document()
+    └─ Текущий документ (для инициализации при старте)
+
+2.3. Схема соединений
+
+  file_tab_srv.editor_state_changed
+    └─ operation in ("tab_changed","Opened","Reload","Reopened")
+         └─ full_title (путь к файлу) → IclearWidget.fill_from_page_path()
+              └─ NodesNav.set_from_page_path() → обновление списков в тулбаре
+
+  IclearWidget (кнопка "Open")
+    └─ open_file_cb(Path) → file_tab_srv.add_tab(Path)
+
+3. ФОРМАТ UI
+-------------
+- QWidget с QHBoxLayout:
+  + [⚙] — кнопка Settings (открытие IclearSettingDialog)
+  + [site│top│man│cat│page] — WinNodesNav (QComboBox на каждый уровень)
+  + [🔗] — кнопка URL (заполнение из адресной строки)
+  + [📂] — кнопка Open (открытие/переход к странице)
+  + [...] — меню (xdg_open, refill, генерация кода)
+
+4. НАВИГАЦИЯ
+-------------
+Данные загружаются из map.xml (на каждом уровне — своя карта).
+NodesNav хранит текущий путь: site → top → man → cat → page.
+Уровни: host (невидимый), site, top, man, cat, page.
+
+Синхронизация с редактором:
+- При смене вкладки или открытии файла сигнал editor_state_changed
+  передаёт полный путь, парсится через NodesNav.set_from_page_path(),
+  обновляются QComboBox на всех уровнях.
+
+5. ИСПОЛЬЗУЕМЫЕ КЛАССЫ
+------------------------
+- IclearPlugin (main.py) — PluginBase, точка входа
+- IclearWidget (wiclear.py) — основной виджет тулбара
+- WinNodesNav + WinNode — QComboBox на каждый уровень
+- NodesNav, IHost, ISite, ITop, IMan, ICat, IPage (iclearlib.py) — модель данных
+- IclearSettingDialog — настройка путей hostpath/sitepath
+
+6. ПРИВЯЗКА К ПРИЛОЖЕНИЮ
+--------------------------
+  main.py:
+    plugin_manager.activate("iclear", editor_app)
+      → IclearPlugin.on_load(editor_app)
+
+  EditorApp предоставляет:
+    file_tab_srv.add_tab()    — открытие файла
+    file_tab_srv.editor_state_changed — уведомление о смене вкладки
+    file_tab_srv.current_document() — получение текущего документа

@@ -4,8 +4,10 @@
 
 ```bash
 pip install PyQt5          # only dependency — no requirements.txt
-python main.py             # launch editor
+python3 main.py            # launch editor
 ```
+
+**⚠️ В системе нет `python`, только `python3`.** Все команды выполнять через `python3`.
 
 **Requires `config.json` in cwd** (raises `ConfigError` if missing). `settings.ini` is auto-created by QSettings and gitignored (`*.ini`).
 
@@ -48,11 +50,11 @@ Built-in plugins: `wordcount` (status-bar word counter), `textprocessing` (Text 
 **No test framework.** Model tests run with assertions and print pass/fail. Visual tests use standalone PyQt windows.
 
 ```bash
-python tests/test_document.py         # Document model — auto-assert (needs display)
-python tests/test_file_tab_model.py   # FileTabModel — auto-assert (pure Python, no Qt)
-python tests/test_file_tab_srv.py     # FileTabSrv — visual test window
+python3 tests/test_document.py         # Document model — auto-assert (needs display)
+python3 tests/test_file_tab_model.py   # FileTabModel — auto-assert (pure Python, no Qt)
+python3 tests/test_file_tab_srv.py     # FileTabSrv — visual test window
 ```
-Run from project root: `PYTHONPATH=. python tests/…`
+Run from project root: `PYTHONPATH=. python3 tests/…`
 
 ## Key conventions
 

@@ -12,21 +12,26 @@ class IclearPlugin(PluginBase):
         self._editor = editor
 
     def on_unload(self):
-        if self._editor and hasattr(self._editor, "tab_panel"):
-            try:
-                self._editor.tab_panel.tab_added.disconnect(self._on_tab_added)
-            except TypeError:
-                pass
         self._editor = None
         self._widget = None
 
     def create_toolbar_widget(self, parent=None):
-        self._widget = IclearWidget(parent=parent)
-        if self._editor and hasattr(self._editor, "tab_panel"):
-            self._editor.tab_panel.currentChanged.connect(self._on_current_tab_changed)
+        self._widget = IclearWidget(
+            open_file_cb=self._editor.file_tab_srv.add_tab,
+            parent=parent,
+        )
+        self._editor.file_tab_srv.editor_state_changed.connect(
+            self._on_tab_changed
+        )
+        self._sync_from_current_tab()
         return self._widget
 
-    def _on_current_tab_changed(self, index):
-        file_editor = self._editor.tab_panel.widget(index)
-        if hasattr(file_editor, "path") and file_editor.path and self._widget:
-            self._widget.fill_from_page_path(str(file_editor.path))
+    def _on_tab_changed(self, title, full_title, mod_label, operation):
+        if operation in ("tab_changed", "Opened", "Reload", "Reopened"):
+            if full_title and self._widget:
+                self._widget.fill_from_page_path(full_title)
+
+    def _sync_from_current_tab(self):
+        doc = self._editor.file_tab_srv.current_document()
+        if doc and doc.file_path and self._widget:
+            self._widget.fill_from_page_path(str(doc.file_path))
