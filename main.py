@@ -45,6 +45,7 @@ def main():
         editor_app.on_error(msg)
 
     sys.excepthook = excepthook
+    
     plugin_manager.discover()
 
     def open_plugin_settings():

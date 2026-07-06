@@ -20,15 +20,11 @@
                               ↓
                           вкладка Err (err_box)
 
-   Любой код → MessageSrv.post_message(text, sender, msg_type)
-                  ↓
-              display_message сигнал → MsgPanelView.append_msg()
-                  ↓
-              вкладка Msg (msg_box)
-
    Плагины и любой код → MessageSrv.post_message(text, sender, msg_type)
-                            ↓
-                        display_message сигнал → MsgPanelView.append_msg()
+							  ↓
+						  display_message сигнал → MsgPanelView.append_msg()
+							  ↓
+						  вкладка Msg (msg_box)
 
    MsgPanelView.show_view(text, text_type) — только для сгенерированного текста,
    который не нужно вставлять в редактор (результаты обработки, валидации и т.п.)

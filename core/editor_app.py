@@ -1,34 +1,33 @@
 #! /usr/bin/env python3
 
-import json
 from pathlib import Path
 
 from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel, QAction
 from PyQt5.QtGui import QFont, QIcon, QKeySequence
-from PyQt5.QtCore import Qt, QPoint, QSize, QSettings, pyqtSignal
+from PyQt5.QtCore import Qt, QPoint, QSize, pyqtSignal
 
 from core.views.file_tab_view import FileTabView
 from core.services.file_tab_srv import FileTabSrv
 from core.views.html_editor_widget import HTMLEditor
 from core.views.msg_panel_view import MsgPanelView
 from core.services.message_srv import MessageSrv
-
-
-class ConfigError(Exception):
-    pass
+from core.services.config_service import ConfigService, ConfigError
+from core.services.zoom_service import ZoomService
 
 
 class EditorApp(QMainWindow):
     win_title = "Text Editor"
     recent_files_changed = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, config_service: ConfigService = None):
         super().__init__()
         self.setWindowTitle(EditorApp.win_title)
         self.setWindowIcon(QIcon("icons/clear.svg"))
         self.config = None
         self.settings = None
         self.recent_files = []
+        self._config_service = config_service
+        self._zoom_service = None
 
         self.file_tab_view = FileTabView(parent=self)
         self.file_tab_srv = FileTabSrv(
@@ -57,77 +56,61 @@ class EditorApp(QMainWindow):
             lambda line: self.line_label.setText(f"Line: {line}")
         )
 
+    # --- ConfigService delegation ---
+
     def load_config(self):
-        config_path = Path("config.json")
-        if not config_path.exists():
-            raise ConfigError("Отсутствует файл конфигурации config.json")
-        try:
-            with open(config_path, encoding="utf-8") as f:
-                self.config = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ConfigError(f"Ошибка парсинга config.json: {e}")
+        if self._config_service is None:
+            self._config_service = ConfigService()
+        cs = self._config_service
+        self.config = cs.config
+        self.settings = cs.settings
 
-        self.settings = QSettings("settings.ini", QSettings.IniFormat)
+        ui_defaults = cs.get_ui_defaults()
+        default_pos = ui_defaults.get("geometry/pos", [200, 150])
+        default_size = ui_defaults.get("geometry/size", [1500, 900])
+        cs.restore_window_geometry(self, default_pos, default_size)
 
-        ui_defaults = self.config.get("ui_defaults", {})
-        pos = self.settings.value("geometry/pos")
-        if not pos:
-            default_pos = ui_defaults.get("geometry/pos", [200, 150])
-            pos = QPoint(*default_pos)
-        self.move(pos)
-
-        size = self.settings.value("geometry/size")
-        if not size:
-            default_size = ui_defaults.get("geometry/size", [1500, 900])
-            size = QSize(*default_size)
-        self.resize(size)
-
-        font_size = int(self.settings.value("font_size", 12))
+        font_size = cs.restore_font_size(12)
         self.setFont(QFont("SansSerif", font_size))
 
-        count = self.settings.beginReadArray("recent_files")
-        for i in range(count):
-            self.settings.setArrayIndex(i)
-            f = self.settings.value("f")
-            if f:
-                self.recent_files.append(f)
-        self.settings.endArray()
+        self.recent_files = cs.restore_recent_files()
+        self._zoom_service = ZoomService(self, parent=self)
 
     def closeEvent(self, event):
         if self.settings is not None:
-            self.settings.setValue("geometry/pos", self.pos())
-            self.settings.setValue("geometry/size", self.size())
+            cs = self._config_service
+            cs.save_window_geometry(self)
             font = self.font()
-            self.settings.setValue("font_size", font.pointSize())
-
-            self.settings.beginWriteArray("recent_files")
-            for i, f in enumerate(self.recent_files):
-                self.settings.setArrayIndex(i)
-                self.settings.setValue("f", f)
-            self.settings.endArray()
-
+            cs.save_font_size(font.pointSize())
+            cs.save_recent_files(self.recent_files)
             open_files = self.file_tab_srv.get_open_files()
-            self.settings.beginWriteArray("open_files")
-            for i, f in enumerate(open_files):
-                self.settings.setArrayIndex(i)
-                self.settings.setValue("f", f)
-            self.settings.endArray()
-
-            self.settings.sync()
+            cs.save_open_files(open_files)
+            cs.sync()
         self.file_tab_srv.closeEvent(event)
         if not event.isAccepted():
             return
         event.accept()
 
+    def set_tab_panel(self):
+        if self.settings is None:
+            if self.file_tab_srv.tab_count() == 0:
+                self.file_tab_srv.new_tab()
+            return
+        file_list = self._config_service.restore_open_files()
+        if file_list:
+            self.file_tab_srv.set_files(file_list)
+        if self.file_tab_srv.tab_count() == 0:
+            self.file_tab_srv.new_tab()
+
+    # --- Zoom ---
+
     def zoom_in(self):
-        font = self.font()
-        font.setPointSize(font.pointSize() + 1)
-        self.setFont(font)
+        if self._zoom_service:
+            self._zoom_service.zoom_in()
 
     def zoom_out(self):
-        font = self.font()
-        font.setPointSize(max(6, font.pointSize() - 1))
-        self.setFont(font)
+        if self._zoom_service:
+            self._zoom_service.zoom_out()
 
     def add_recent_file(self, path):
         if path in self.recent_files:
@@ -175,22 +158,6 @@ class EditorApp(QMainWindow):
 
     def get_menu_bar(self):
         return self.menuBar()
-
-    def set_tab_panel(self):
-        file_list = []
-        if self.settings is not None:
-            count = self.settings.beginReadArray("open_files")
-            for i in range(count):
-                self.settings.setArrayIndex(i)
-                f = self.settings.value("f")
-                if f:
-                    file_list.append(f)
-            self.settings.endArray()
-
-        if file_list:
-            self.file_tab_srv.set_files(file_list)
-        if self.file_tab_srv.tab_count() == 0:
-            self.file_tab_srv.new_tab()
 
     def create_menu_bar(self, menu_bar):
         file_menu = menu_bar.addMenu("File")

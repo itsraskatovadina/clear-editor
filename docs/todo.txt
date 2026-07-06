@@ -1,17 +1,70 @@
 
---------------------------------------------------------------
-PluginManager 
-1. как организовать возможность обращения плагинов к функциональности друг друга?
-например, плагин iclear может выбирать группу (список) файлов, если подключен плагин htmlprocessing 
-- иметь возможность вызвать его метод validate_html для каждого файла из списка
-2. формат декларации UI-элементов плагинов создавался в цейтноте. Удобна система переиспользования actions
-и для меню и для тулбаров, ее надо оставить. А сам формат:
-[{
-        'kind': "menu", 'text': "Edit", 'content': [
-            index_actions['remove_empty'], 
-стоит заменить на что-то более стандартное/удобное. есть варианты?
-3 variant_tool_submenu надо один оставить
+0. ZoomService
+ZoomService переназвать например AppUISetService (рассмотрю твои предложения по названию), там будет другая аналогичная функциональность
+AppUISetService ( бывший ZoomService) должен менять шрифт (фон) сразу для всего приложения
+почему  self._zoom_service = ZoomService(self, parent=self) в load_config?
 
+Предлагаю - AppUISetService ( бывший ZoomService) создавать в main, передавать в EditorApp
+ 
+
+1. main.py
+
+1.1. строки -
+    original_stderr = sys.stderr
+    sys.stderr = ErrorHandler(editor_app.on_error)
+
+    def excepthook(exc_type, exc_value, exc_tb):
+        msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        original_stderr.write(msg)
+        editor_app.on_error(msg)
+
+    sys.excepthook = excepthook
+    
+  должны идти сразу перед 
+    editor_app.set_tab_panel()
+  чтобы максимум ошибок отлавливать. 
+  добавить комментарий - redirect uncaught errors
+  
+1.2. добавить короткие комментарии как в EditorApp перед логическими блоками
+    # --- ConfigService delegation ---
+   для визуального структурирования кода
+   
+1.3. также, для визуального структурирования кода, строки
+
+   loaded = settings.value("active_plugins", [])
+    if loaded is None:
+        loaded = []
+    elif isinstance(loaded, str):
+        loaded = [loaded]
+    for name in loaded:
+        plugin_manager.activate(name, editor_app)
+        
+    поместить перед 
+    
+    def open_plugin_settings():
+    
+    так вроде ничего не ломается
+
+1.4.  переменные registry, loader, ui переименовать в plugin_registry, plugin_loader, plugin_ui
+ 
+2. EditorApp
+
+старую set_tab_panel сама убрала
+
+load_config разбить на load_config и restore_setting (рассмотрю твои предложения по названию),
+в load_config оставить только критичные для приложение открытие и парсинг config файла, 
+restore_setting вызывать после блока redirect uncaught errors
+
+
+2.1 создание statusBar вынести из init в def create_status_bar, подключение line_changed оставить в init,
+		в init должно остаться:
+		create_status_bar()
+	    self.file_tab_srv.line_changed.connect(
+            lambda line: self.line_label.setText(f"Line: {line}")
+        )
+  метод create_status_bar поместить сразу после create_menu_bar
+    
+  
 --------------------------------------------------------------
 Плагины
 1. Плагин 'HTMLProcessing' переименовать в HTMLTools, перенести в меню Tools
