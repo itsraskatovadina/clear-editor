@@ -19,9 +19,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("ClearEditor")
 
-    # --- Theme ---
     editor_app = EditorApp()
-    editor_app.theme = ThemeService(target=editor_app)
 
     # --- Config ---
     try:
@@ -40,6 +38,12 @@ def main():
         editor_app.on_error(msg)
 
     sys.excepthook = excepthook
+
+    # --- Restore UI settings ---
+    editor_app.restore_settings()
+
+    # --- Theme ---
+    editor_app.theme = ThemeService(target=editor_app)
 
     editor_app.set_tab_panel()
 

@@ -9,15 +9,16 @@
    registry/loader/ui → plugin_registry/plugin_loader/plugin_ui.
  
 2. EditorApp
+2.1 перенеси строки 
+ editor_app.theme = ThemeService(target=editor_app) 
+ за блок redirect uncaught errors чтобы ошибки в панель ловить
 
-старую set_tab_panel сама убрала
-
-load_config разбить на load_config и restore_setting (рассмотрю твои предложения по названию),
+2.2 load_config разбить на load_config и restore_setting (рассмотрю твои предложения по названию),
 в load_config оставить только критичные для приложение открытие и парсинг config файла, 
 restore_setting вызывать после блока redirect uncaught errors
 
 
-2.1 создание statusBar вынести из init в def create_status_bar, подключение line_changed оставить в init,
+2.3 создание statusBar вынести из init в def create_status_bar, подключение line_changed оставить в init,
 		в init должно остаться:
 		create_status_bar()
 	    self.file_tab_srv.line_changed.connect(

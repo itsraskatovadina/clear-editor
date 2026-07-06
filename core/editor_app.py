@@ -47,11 +47,7 @@ class EditorApp(QMainWindow):
         self.splitter.setSizes([500, 100])
         self.setCentralWidget(self.splitter)
 
-        self.statusBar = QStatusBar()
-        self.setStatusBar(self.statusBar)
-
-        self.line_label = QLabel(parent=self.statusBar)
-        self.statusBar.addPermanentWidget(self.line_label)
+        self.create_status_bar()
         self.file_tab_srv.line_changed.connect(
             lambda line: self.line_label.setText(f"Line: {line}")
         )
@@ -65,6 +61,8 @@ class EditorApp(QMainWindow):
         self.config = cs.config
         self.settings = cs.settings
 
+    def restore_settings(self):
+        cs = self._config_service
         ui_defaults = cs.get_ui_defaults()
         default_pos = ui_defaults.get("geometry/pos", [200, 150])
         default_size = ui_defaults.get("geometry/size", [1500, 900])
@@ -182,6 +180,12 @@ class EditorApp(QMainWindow):
         action_zoom_out.setShortcut(QKeySequence.ZoomOut)
         settings_menu.addSeparator()
         self.plugins_action = settings_menu.addAction("Plugins")
+
+    def create_status_bar(self):
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        self.line_label = QLabel(parent=self.statusBar)
+        self.statusBar.addPermanentWidget(self.line_label)
 
     def on_error(self, msg):
         self.msg_srv.post_message(msg, "System", "error")
