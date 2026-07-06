@@ -19,25 +19,18 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("ClearEditor")
 
+    # --- Theme ---
     editor_app = EditorApp()
     editor_app.theme = ThemeService(target=editor_app)
+
+    # --- Config ---
     try:
         editor_app.load_config()
     except ConfigError as e:
         print(e)
         sys.exit(1)
 
-    editor_app.set_tab_panel()
-
-    registry = PluginRegistry()
-    loader = PluginLoader()
-    ui = PluginUI()
-    plugin_manager = PluginManager(
-        registry, loader, ui,
-        parent=editor_app, plugins_dir=editor_app.config["plugins_dir"]
-    )
-    settings = editor_app.settings
-
+    # --- redirect uncaught errors ---
     original_stderr = sys.stderr
     sys.stderr = ErrorHandler(editor_app.on_error)
 
@@ -47,8 +40,32 @@ def main():
         editor_app.on_error(msg)
 
     sys.excepthook = excepthook
-    
+
+    editor_app.set_tab_panel()
+
+    # --- Plugin system ---
+    plugin_registry = PluginRegistry()
+    plugin_loader = PluginLoader()
+    plugin_ui = PluginUI()
+    plugin_manager = PluginManager(
+        plugin_registry, plugin_loader, plugin_ui,
+        parent=editor_app, plugins_dir=editor_app.config["plugins_dir"]
+    )
+    settings = editor_app.settings
     plugin_manager.discover()
+
+    # --- Load active plugins ---
+    loaded = settings.value("active_plugins", [])
+    if loaded is None:
+        loaded = []
+    elif isinstance(loaded, str):
+        loaded = [loaded]
+    for name in loaded:
+        plugin_manager.activate(name, editor_app)
+
+    # --- Menu bar ---
+    menu_bar = editor_app.menuBar()
+    editor_app.create_menu_bar(menu_bar)
 
     def open_plugin_settings():
         active_before = plugin_manager.get_all_active()
@@ -59,7 +76,7 @@ def main():
             selected = [selected]
 
         dialog = PluginWidget(
-            registry,
+            plugin_registry,
             set(selected),
             editor_app,
         )
@@ -75,18 +92,9 @@ def main():
                 if name not in active_before:
                     plugin_manager.activate(name, editor_app)
 
-    menu_bar = editor_app.menuBar()
-    editor_app.create_menu_bar(menu_bar)
     editor_app.plugins_action.triggered.connect(open_plugin_settings)
 
-    loaded = settings.value("active_plugins", [])
-    if loaded is None:
-        loaded = []
-    elif isinstance(loaded, str):
-        loaded = [loaded]
-    for name in loaded:
-        plugin_manager.activate(name, editor_app)
-
+    # --- App focus ---
     app.focusChanged.connect(editor_app.on_app_focus_changed)
 
     editor_app.show()

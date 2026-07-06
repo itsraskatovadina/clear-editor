@@ -3,45 +3,10 @@
    Переименован в ThemeService, расширен API (set_font, set_font_size, set_background, reset).
    Создаётся в main, передаётся через editor_app.theme (public attribute).
  
-1. main.py
-
-1.1. строки -
-    original_stderr = sys.stderr
-    sys.stderr = ErrorHandler(editor_app.on_error)
-
-    def excepthook(exc_type, exc_value, exc_tb):
-        msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
-        original_stderr.write(msg)
-        editor_app.on_error(msg)
-
-    sys.excepthook = excepthook
-    
-  должны идти сразу перед 
-    editor_app.set_tab_panel()
-  чтобы максимум ошибок отлавливать. 
-  добавить комментарий - redirect uncaught errors
-  
-1.2. добавить короткие комментарии как в EditorApp перед логическими блоками
-    # --- ConfigService delegation ---
-   для визуального структурирования кода
-   
-1.3. также, для визуального структурирования кода, строки
-
-   loaded = settings.value("active_plugins", [])
-    if loaded is None:
-        loaded = []
-    elif isinstance(loaded, str):
-        loaded = [loaded]
-    for name in loaded:
-        plugin_manager.activate(name, editor_app)
-        
-    поместить перед 
-    
-    def open_plugin_settings():
-    
-    так вроде ничего не ломается
-
-1.4.  переменные registry, loader, ui переименовать в plugin_registry, plugin_loader, plugin_ui
+1. main.py ✅
+   Блок redirect uncaught errors перенесён перед set_tab_panel(), добавлены
+   # --- ... --- секции, загрузка плагинов перед open_plugin_settings(),
+   registry/loader/ui → plugin_registry/plugin_loader/plugin_ui.
  
 2. EditorApp
 
