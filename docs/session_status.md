@@ -1,7 +1,7 @@
 # Session Status
 
 **Дата:** 2026-07-06
-**Этап:** Master plan — **приостановлен**. Доработка main / EditorApp / сервисов.
+**Этап:** Плагины — iclear переведён на FileTabSrv API ✅. Следующий: пункты 3-4 plan_plugins.txt.
 
 ## Общий прогресс
 
@@ -10,32 +10,47 @@
 | MsgPanel → MessageSrv + MsgPanelView + MessageModel | ✅ закоммичено |
 | HTMLEditor → TagCompletionsModel | ✅ закоммичено |
 | PluginManager → Registry + Loader + UI | ✅ закоммичено |
-| EditorApp → ConfigService + ZoomService | ✅ закоммичено |
-| iclear → FileTabSrv API | ⏸️ отложено |
-| Доработка main / EditorApp / сервисов | 🔄 текущая задача |
+| EditorApp рефакторинг (ConfigSrv, ThemeSrv, status_bar) | ✅ закоммичено |
+| main.py реструктуризация | ✅ закоммичено |
+| iclear → FileTabSrv API + спецификация | ✅ закоммичено |
 
-## Текущая задача
+## Что сделано в последнюю сессию
 
-Доработать main.py, EditorApp и сервисы Config/Zoom по списку из docs/plan_plugins.txt → раздел 5:
-
-1. ~~**ZoomService → ThemeService** — переименован ✅, API расширен, DI в main~~
-2. **load_config** разбить на `load_config` (только config.json) + `restore_settings` (QSettings — геометрия, шрифт, recent)
-3. **main.py** — блок redirect uncaught errors перенести сразу перед `set_tab_panel()`
-4. **main.py** — добавить комментарии `# --- ... ---` для визуальной структуры
-5. **main.py** — блок загрузки активных плагинов поместить перед `def open_plugin_settings()`
-6. **main.py** — `registry/loader/ui` → `plugin_registry/plugin_loader/plugin_ui`
-7. **EditorApp** — `create_status_bar()` вынести из `__init__`
+1. EditorApp:
+   - ThemeService перенесён после redirect uncaught errors
+   - load_config разделён на load_config + restore_settings
+   - create_status_bar вынесен из `__init__`
+2. iclear plugin:
+   - tab_panel → editor_state_changed + add_tab
+   - убран мёртвый код on_unload
+   - добавлен _sync_from_current_tab()
+3. Документация:
+   - AGENTS.md: предупреждение про python3
+   - docs/spec/plugins/iclear_spec.txt — спецификация плагина
 
 ## Текущее состояние (working tree)
 
 Рабочий каталог чистый. Все изменения закоммичены.
+Ветка main опережает origin/main на 12 коммитов.
+
+## Очередь (plan_plugins.txt)
+
+1. ~~iclear ✅~~
+2. **п.3** — межплагинная связь iclear → htmlprocessing
+3. **п.4** — доработки плагинов:
+   - 4.1 HTMLProcessing → HTMLTools, перенос в Tools
+   - 4.2 TextProcessing — Wrap произвольным тегом
+   - 4.3 TextProcessing — Вставка шаблонов
+   - 4.4 Настройка видимости тулбаров и панелей
+   - 4.5 ~~спецификации плагинов ✅~~
+4. **п.6** — меню плагинов дублируются (plugin_ui.find_menu_by_text)
 
 ## Документы
 
 | Файл | Описание |
 |------|----------|
-| `docs/master_plan.txt` | Общий план рефакторинга (Rec 1-8) — приостановлен |
-| `docs/plan_plug_manager.txt` | План рефакторинга PluginManager (выполнен) |
+| `docs/master_plan.txt` | Общий план рефакторинга |
 | `docs/plan_editor_app.txt` | План рефакторинга EditorApp |
-| `docs/plan_plugins.txt` | Сводный план по плагинам — приостановлен |
+| `docs/plan_plugins.txt` | Сводный план по плагинам |
+| `docs/spec/plugins/iclear_spec.txt` | Спецификация плагина iclear |
 | `docs/todo.txt` | Хотелки и текущие задачи |
