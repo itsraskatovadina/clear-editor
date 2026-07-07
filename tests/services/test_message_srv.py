@@ -31,7 +31,7 @@ def test_info_routes_to_display_message():
     print("  OK info → display_message")
 
 
-def test_error_routes_to_display_error():
+def test_post_error_routes_to_display_error():
     srv = MessageSrv()
     received = []
 
@@ -39,11 +39,11 @@ def test_error_routes_to_display_error():
         received.append(html)
 
     srv.display_error.connect(slot)
-    srv.post_message("fail", msg_type="error")
+    srv.post_error("fail", "System")
     _events()
     assert len(received) == 1
     assert "fail" in received[0]
-    print("  OK error → display_error")
+    print("  OK post_error → display_error")
 
 
 def test_message_received_emitted():
@@ -60,19 +60,16 @@ def test_message_received_emitted():
     print("  OK message_received emitted")
 
 
-def test_display_message_not_called_on_error():
+def test_post_message_error_routes_to_display_message():
     srv = MessageSrv()
-    msg_received = []
-    err_received = []
+    received = []
 
-    srv.display_message.connect(lambda h: msg_received.append(h))
-    srv.display_error.connect(lambda h: err_received.append(h))
+    srv.display_message.connect(lambda h: received.append(h))
 
     srv.post_message("error test", msg_type="error")
     _events()
-    assert len(err_received) == 1
-    assert len(msg_received) == 0
-    print("  OK error does not trigger display_message")
+    assert len(received) == 1
+    print("  OK post_message error → display_message")
 
 
 def test_display_error_not_called_on_info():
@@ -148,7 +145,7 @@ def test_excepthook_routes_via_error_handler():
     srv.display_error.connect(lambda h: err_received.append(h))
 
     def on_error(msg):
-        srv.post_message(msg, "System", "error")
+        srv.post_error(msg, "System")
 
     eh = ErrorHandler(on_error)
     sys.excepthook = lambda exc_type, exc_value, exc_tb: eh.write(
@@ -182,9 +179,9 @@ def test_error_handler_forwards_to_handle():
 
 if __name__ == "__main__":
     test_info_routes_to_display_message()
-    test_error_routes_to_display_error()
+    test_post_error_routes_to_display_error()
     test_message_received_emitted()
-    test_display_message_not_called_on_error()
+    test_post_message_error_routes_to_display_message()
     test_display_error_not_called_on_info()
     test_warning_routes_to_display_message()
     test_debug_routes_to_display_message()

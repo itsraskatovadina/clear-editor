@@ -189,7 +189,7 @@ class EditorApp(QMainWindow):
         self.statusBar.addPermanentWidget(self.line_label)
 
     def on_error(self, msg):
-        self.msg_srv.post_message(msg, "System", "error")
+        self.msg_srv.post_error(msg, "System")
 
     def _ensure_msg_panel_visible(self):
         sizes = self.splitter.sizes()

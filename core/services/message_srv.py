@@ -16,13 +16,17 @@ class MessageSrv(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+    def post_error(self, text, sender=""):
+        msg = Message(text=text, sender=sender, msg_type="error")
+        html = self._format(msg)
+        self.display_error.emit(html)
+        QApplication.beep()
+        self.message_received.emit()
+
     def post_message(self, text, sender="", msg_type="info"):
         msg = Message(text=text, sender=sender, msg_type=msg_type)
         html = self._format(msg)
-        if msg_type == "error":
-            self.display_error.emit(html)
-            QApplication.beep()
-        elif msg_type == "warning":
+        if msg_type in ("error", "warning"):
             self.display_message.emit(html)
             QApplication.beep()
         else:

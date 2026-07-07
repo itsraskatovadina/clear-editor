@@ -2,6 +2,7 @@
 
 from PyQt5.QtWidgets import QTabWidget, QTextEdit
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QPalette
 
 
 class MsgPanelView(QTabWidget):
@@ -10,6 +11,10 @@ class MsgPanelView(QTabWidget):
 
         self.err_box = QTextEdit(self)
         self.err_box.setReadOnly(True)
+        palette = self.err_box.palette()
+        palette.setColor(QPalette.Base, QColor("black"))
+        palette.setColor(QPalette.Text, QColor("white"))
+        self.err_box.setPalette(palette)
         self.msg_box = QTextEdit(self)
         self.msg_box.setReadOnly(True)
         self.view_box = QTextEdit(self)

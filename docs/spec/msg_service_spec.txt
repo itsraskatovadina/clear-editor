@@ -14,17 +14,17 @@
 2. ПОТОКИ СООБЩЕНИЙ
 --------------------
 
-   stderr → ErrorHandler → MessageSrv.post_message(msg, "System", "error")
+   stderr → ErrorHandler → MessageSrv.post_error(msg, "System")
                               ↓
                           display_error сигнал → MsgPanelView.append_err()
                               ↓
                           вкладка Err (err_box)
 
    Плагины и любой код → MessageSrv.post_message(text, sender, msg_type)
-							  ↓
-						  display_message сигнал → MsgPanelView.append_msg()
-							  ↓
-						  вкладка Msg (msg_box)
+                              ↓
+                          display_message сигнал → MsgPanelView.append_msg()
+                              ↓
+                          вкладка Msg (msg_box)
 
    MsgPanelView.show_view(text, text_type) — только для сгенерированного текста,
    который не нужно вставлять в редактор (результаты обработки, валидации и т.п.)
@@ -34,9 +34,13 @@
 3. MessageSrv (core/services/message_srv.py)
 ----------------------------------------------
 - QObject, без UI
-- post_message(text, sender="", msg_type="info") — единый вход
-- msg_type = "error" → display_error.emit(html)
-- msg_type = "info"|"debug"|"warning" → display_message.emit(html)
+- post_error(text, sender="") — для системных/uncaught ошибок (stderr/excepthook)
+  → display_error.emit(html) → Err вкладка
+- post_message(text, sender="", msg_type="info") — для всех handled сообщений
+- msg_type = "error"|"warning" → display_message.emit(html) + beep
+- msg_type = "info"|"debug" → display_message.emit(html)
+- Все handled сообщения — в Msg вкладку (display_message)
+- Err вкладка — только через post_error (системные ошибки)
 - Формат HTML: <span style='color: {color};'>[sender] text</span>
 - Цвета: debug=gray, info=blue, warning=orange, error=red
 - Сигнал message_received() — для авто-открытия панели
@@ -61,4 +65,4 @@
    msg_srv.display_error → msg_panel.append_err
    msg_srv.display_message → msg_panel.append_msg
    msg_srv.message_received → _ensure_msg_panel_visible
-   on_error → msg_srv.post_message(msg, "System", "error")
+   on_error → msg_srv.post_error(msg, "System")
