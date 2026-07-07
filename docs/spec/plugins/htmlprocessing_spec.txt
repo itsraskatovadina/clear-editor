@@ -1,0 +1,104 @@
+ПЛАГИН HTMLPROCESSING — Обработка HTML кода
+=============================================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Плагин для валидации HTML-кода и генерации оглавления по заголовкам.
+Может работать как с текущим редактором (вызов из меню), так и с файлами
+на диске (межплагинный вызов из iclear).
+
+2. ЖИЗНЕННЫЙ ЦИКЛ
+------------------
+
+  PluginManager.activate()
+    → on_load(editor) — сохраняет EditorApp
+    → plugin_ui строит меню Edit → HTML
+
+  PluginManager.deactivate()
+    → on_unload() — очищает ссылки
+
+3. UI-ДЕКЛАРАЦИЯ
+-----------------
+
+  actions = [
+    {"id": "gen_content_list", "text": "Generate content list", "callback": "gen_content_list"},
+    {"id": "validate_html",    "text": "Validate HTML",         "callback": "validate_html"},
+  ]
+
+  menu_items = [
+    {"kind": "menu", "text": "Edit", "content": [
+      {"kind": "menu", "text": "HTML", "content": [
+        index_actions["gen_content_list"],
+        {"kind": "separator"},
+        index_actions["validate_html"],
+      ]}
+    ]}
+  ]
+
+  Вливается в существующее подменю Edit → HTML от TextProcessing
+  (plugin_ui.find_menu_by_text).
+
+4. МЕТОДЫ
+-----------
+
+4.1. _validate_text(text: str) → list[tuple[int, str]]
+
+  Внутренний метод. Принимает сырой текст (с PHP-блоками и комментариями),
+  возвращает список ошибок:
+
+    [(line_num, description), ...]
+
+  Алгоритм:
+    1. Удалить <?php ... ?> блоки
+    2. Удалить <!-- ... --> комментарии
+    3. Если нет ни одного HTML-тега → вернуть []
+    4. Итерировать по тегам <tag>, </tag>, <tag/>
+    5. Стек для отслеживания вложенности:
+       - void elements (br, img, input, hr, meta, link, area, base, col,
+         embed, source, track, wbr) → не влияют на стек
+       - <tag/> (самозакрывающиеся) → пропускаются
+       - </tag> → проверка: соответствует ли верхушке стека
+       - <tag> → добавляется в стек
+    6. Останов на первой ошибке
+
+  Возвращает:
+    [] — если ошибок нет или нет тегов
+    [(line, msg), ...] — список ошибок
+
+4.2. validate_html(file_path: str | None = None)
+
+  Режим A — вызов из меню (file_path=None):
+    - Берёт текст из текущего редактора (current_editor().toPlainText())
+    - Вызывает _validate_text(text)
+    - Если ошибок нет: self._post(f"No errors in {fname}.")
+    - Если есть ошибки: открывает ValErrorsDialog для просмотра/перехода
+
+  Режим B — межплагинный вызов (file_path задан):
+    - Читает файл с диска (encoding="utf-8")
+    - Вызывает _validate_text(text)
+    - Возвращает список ошибок [(line, msg), ...] или [] если всё чисто
+    - При ошибке чтения файла: возвращает [(0, str(exception))]
+    - НЕ открывает диалог, НЕ отправляет сообщения
+
+4.3. gen_content_list(start_head_level=1, pass_nocontents=False)
+
+  Генерация оглавления по заголовкам <h1>-<h6>.
+  Детальное описание — в docs/spec/ver1.0/ru/plugins_spec.txt (5.3).
+
+5. ValErrorsDialog
+-------------------
+
+  QDialog, открывается при вызове validate_html() из меню (режим A).
+  - QListWidget со строками "Row X: описание ошибки"
+  - Клик по строке → QTextCursor на соответствующую строку в редакторе
+  - Кнопка "Re-validate" → закрывает диалог, запускает повторную валидацию
+  - Кнопка "Close" → закрывает диалог
+
+6. МЕЖПЛАГИННАЯ СВЯЗЬ
+-----------------------
+
+  - Плагин iclear вызывает validate_html(file_path=full_path) для пакетной
+    валидации всех страниц в разделе.
+  - Режим B (file_path задан) разработан специально для этого сценария.
+  - Вызов из меню (режим A) остаётся без изменений для ручной валидации
+    текущего файла.

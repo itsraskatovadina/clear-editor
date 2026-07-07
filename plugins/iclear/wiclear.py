@@ -203,11 +203,8 @@ class IclearWidget(QWidget):
         checkMapAction.triggered.connect(self.check_map)
         menu.addAction(checkMapAction)
 
-        menu.addSeparator()
-
-        validateAction = QAction("validate html", self)
-        validateAction.triggered.connect(self._validate_all_pages)
-        menu.addAction(validateAction)
+        self._validate_action = None
+        menu.aboutToShow.connect(self._update_validate_action)
 
         self.btnMenu.setMenu(menu)
         hboxLay.addWidget(self.btnMenu)
@@ -263,15 +260,12 @@ class IclearWidget(QWidget):
                 return True
         return False
 
-    def _validate_all_pages(self):
-        man = self.winnodnav.nodnav.man
-        if not man:
-            if self._editor:
-                self._editor.msg_srv.post_message(
-                    "Select a section (man) first", "iclear", "warning"
-                )
-            return
+    def _collect_pages(self, node):
+        pages = []
+        node.travers(lambda n: pages.append(n) if isinstance(n, iclib.IPage) else None)
+        return pages
 
+    def _validate_all_pages(self):
         if not self._editor or not self._editor.plugin_manager:
             return
 
@@ -282,8 +276,22 @@ class IclearWidget(QWidget):
             )
             return
 
+        nav = self.winnodnav.nodnav
         pages = []
-        man.travers(lambda n: pages.append(n) if isinstance(n, iclib.IPage) else None)
+
+        if nav.page:
+            pages = [nav.page]
+        elif nav.cat:
+            pages = self._collect_pages(nav.cat)
+        elif nav.man:
+            pages = self._collect_pages(nav.man)
+        elif nav.top:
+            pages = self._collect_pages(nav.top)
+        else:
+            self._editor.msg_srv.post_message(
+                "No files selected, nothing to validate", "iclear", "warning"
+            )
+            return
 
         if not pages:
             self._editor.msg_srv.post_message(
@@ -291,20 +299,25 @@ class IclearWidget(QWidget):
             )
             return
 
+        status_bar = self._editor.statusBar
         total = len(pages)
         errors_count = 0
         for page in pages:
             full_path = page.full_path()
             if not iclib.Tools.check_exists_file(full_path):
                 continue
+            status_bar.showMessage(f"Validating: {page.short_path()}", 0)
+            QApplication.processEvents()
             errors = hp.validate_html(file_path=full_path)
             if errors:
                 errors_count += 1
                 for line, msg in errors:
                     self._editor.msg_srv.post_message(
-                        f"{page.short_path()} (line {line}): {msg}",
-                        "iclear", "error",
+                        f"{page.full_path()} (line {line}): {msg}",
+                        "iclear", "warning",
                     )
+
+        status_bar.clearMessage()
 
         if errors_count == 0:
             self._editor.msg_srv.post_message(
@@ -315,6 +328,19 @@ class IclearWidget(QWidget):
                 f"Validated {total}, {errors_count} with errors",
                 "iclear", "warning",
             )
+
+    def _update_validate_action(self):
+        hp = None
+        if self._editor and self._editor.plugin_manager:
+            hp = self._editor.plugin_manager.get_active("htmlprocessing")
+
+        if hp and self._validate_action is None:
+            self._validate_action = QAction("validate html", self)
+            self._validate_action.triggered.connect(self._validate_all_pages)
+            self.btnMenu.menu().addAction(self._validate_action)
+        elif not hp and self._validate_action is not None:
+            self.btnMenu.menu().removeAction(self._validate_action)
+            self._validate_action = None
 
     def refill_host(self):
         nodedict = self.winnodnav.nodnav.get_dict()

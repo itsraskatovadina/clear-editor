@@ -76,7 +76,42 @@ NodesNav хранит текущий путь: site → top → man → cat → 
 - NodesNav, IHost, ISite, ITop, IMan, ICat, IPage (iclearlib.py) — модель данных
 - IclearSettingDialog — настройка путей hostpath/sitepath
 
-6. ПРИВЯЗКА К ПРИЛОЖЕНИЮ
+6. МЕЖПЛАГИННАЯ СВЯЗЬ
+-----------------------
+
+6.1. Зависимость: HTMLProcessing
+  - Плагин iclear вызывает htmlprocessing.validate_html(file_path) для валидации HTML
+  - Плагин HTMLProcessing должен быть активирован для работы функции валидации
+  - Пункт меню "validate html" создаётся динамически: появляется только если HTMLProcessing активен
+    (проверка через editor.plugin_manager.get_active("htmlprocessing") при каждом открытии меню)
+
+6.2. Метод _validate_all_pages()
+
+  Вызывается из пункта меню "validate html". Поведение зависит от уровня навигации:
+
+    page выбран       → валидируется только этот page
+    cat выбран        → все IPage под этим cat (travers)
+    man выбран        → все IPage под этим man (travers)
+    top выбран        → все IPage под этим top (travers)
+    ничего не выбрано → сообщение "No files selected, nothing to validate"
+
+  Для каждого файла:
+    1. Проверка существования файла (check_exists_file)
+    2. Вывод в статус-бар: "Validating: {short_path}"
+    3. Вызов hp.validate_html(file_path=full_path)
+    4. При ошибках — вывод в msg_panel: "{full_path} (line {line}): {msg}"
+
+  После завершения:
+    - Статус-бар очищается
+    - Сообщение: "All {total} files OK" или "Validated {total}, {errors_count} with errors"
+
+6.3. Доступ к plugin_manager
+
+  editor.plugin_manager устанавливается в main.py:
+    editor_app.plugin_manager = plugin_manager
+    (PluginManager — дочерний QObject EditorApp)
+
+7. ПРИВЯЗКА К ПРИЛОЖЕНИЮ
 --------------------------
   main.py:
     plugin_manager.activate("iclear", editor_app)
@@ -86,3 +121,16 @@ NodesNav хранит текущий путь: site → top → man → cat → 
     file_tab_srv.add_tab()    — открытие файла
     file_tab_srv.editor_state_changed — уведомление о смене вкладки
     file_tab_srv.current_document() — получение текущего документа
+    plugin_manager.get_active() — доступ к активным плагинам
+    statusBar.showMessage()    — вывод в статус-бар
+
+8. ПЛАН ДОРАБОТКИ
+-------------------
+  Отделить конкретный вид обработки (валидация, генерация кода и т.д.)
+  от выбора файлов. Идея:
+    - iclear отвечает только за навигацию и предоставление списка файлов
+      на текущем уровне (page/cat/man/top)
+    - Конкретная обработка (validate_html, gen_content_list и т.п.)
+      реализуется внешними плагинами
+    - iclear предоставляет механизм: "вот список файлов — кто хочет обработать?"
+    - Это позволит добавлять новые виды обработки без изменения кода iclear

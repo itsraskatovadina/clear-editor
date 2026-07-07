@@ -1,7 +1,7 @@
 # Session Status
 
-**Дата:** 2026-07-06
-**Этап:** Плагины — iclear переведён на FileTabSrv API ✅. Следующий: пункты 3-4 plan_plugins.txt.
+**Дата:** 2026-07-07
+**Этап:** Межплагинная связь iclear → htmlprocessing — базовая реализация ✅. Доработка: уровни page/cat/man/top, статус-бар, условное создание действия, полные пути.
 
 ## Общий прогресс
 
@@ -16,22 +16,29 @@
 
 ## Что сделано в последнюю сессию
 
-1. EditorApp:
-   - ThemeService перенесён после redirect uncaught errors
-   - load_config разделён на load_config + restore_settings
-   - create_status_bar вынесен из `__init__`
-2. iclear plugin:
-   - tab_panel → editor_state_changed + add_tab
-   - убран мёртвый код on_unload
-   - добавлен _sync_from_current_tab()
-3. Документация:
-   - AGENTS.md: предупреждение про python3
-   - docs/spec/plugins/iclear_spec.txt — спецификация плагина
+1. Межплагинная связь iclear → htmlprocessing:
+   - EditorApp: добавлен self.plugin_manager
+   - main.py: editor_app.plugin_manager = plugin_manager
+   - HTMLProcessing.validate_html() рефакторинг: _validate_text + file_path
+   - iclear: добавлен editor в IclearWidget, пункт "validate html" в меню
+   - _validate_all_pages() — базовая валидация всех page в man
+2. Документация:
+   - docs/todo.txt — спецификация требований к валидации
+   - report.txt (корень, gitignored) — план доработок
 
 ## Текущее состояние (working tree)
 
-Рабочий каталог чистый. Все изменения закоммичены.
-Ветка main опережает origin/main на 12 коммитов.
+Незакоммичен: scripts/status.sh (добавлен комментарий).
+Ветка main опережает origin/main на 13 коммитов.
+
+## Нужно доработать (из todo.txt → report.txt)
+
+- Уровни: page, cat, man, top
+- Статус-бар во время валидации
+- Создание действия только при активном htmlprocessing
+- Полные пути для файлов с ошибками
+- Сообщение 'No files selected, nothing to validate'
+- Обновление спецификаций плагинов
 
 ## Очередь (plan_plugins.txt)
 
