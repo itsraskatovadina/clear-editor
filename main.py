@@ -55,6 +55,7 @@ def main():
         plugin_registry, plugin_loader, plugin_ui,
         parent=editor_app, plugins_dir=editor_app.config["plugins_dir"]
     )
+    editor_app.plugin_manager = plugin_manager
     settings = editor_app.settings
     plugin_manager.discover()
 

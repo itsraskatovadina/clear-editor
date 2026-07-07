@@ -26,6 +26,7 @@ class EditorApp(QMainWindow):
         self.config = None
         self.settings = None
         self.recent_files = []
+        self.plugin_manager = None
         self._config_service = config_service
         self.theme = theme_service
 

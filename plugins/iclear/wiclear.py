@@ -140,11 +140,11 @@ class WinNodesNav(QWidget):
 
 
 class IclearWidget(QWidget):
-    def __init__(self, nodnav=None, open_file_cb=None, parent=None):
+    def __init__(self, nodnav=None, open_file_cb=None, editor=None, parent=None):
         QWidget.__init__(self, parent)
-
         self.parent = parent
         self._open_file_cb = open_file_cb
+        self._editor = editor
         if nodnav is None:
             nodnav = self._build_nodnav_from_settings()
         self.winnodnav = WinNodesNav(nodnav=nodnav, parent=self)
@@ -203,6 +203,12 @@ class IclearWidget(QWidget):
         checkMapAction.triggered.connect(self.check_map)
         menu.addAction(checkMapAction)
 
+        menu.addSeparator()
+
+        validateAction = QAction("validate html", self)
+        validateAction.triggered.connect(self._validate_all_pages)
+        menu.addAction(validateAction)
+
         self.btnMenu.setMenu(menu)
         hboxLay.addWidget(self.btnMenu)
 
@@ -257,9 +263,60 @@ class IclearWidget(QWidget):
                 return True
         return False
 
+    def _validate_all_pages(self):
+        man = self.winnodnav.nodnav.man
+        if not man:
+            if self._editor:
+                self._editor.msg_srv.post_message(
+                    "Select a section (man) first", "iclear", "warning"
+                )
+            return
+
+        if not self._editor or not self._editor.plugin_manager:
+            return
+
+        hp = self._editor.plugin_manager.get_active("htmlprocessing")
+        if not hp:
+            self._editor.msg_srv.post_message(
+                "Activate HTMLProcessing plugin first", "iclear", "warning"
+            )
+            return
+
+        pages = []
+        man.travers(lambda n: pages.append(n) if isinstance(n, iclib.IPage) else None)
+
+        if not pages:
+            self._editor.msg_srv.post_message(
+                "No pages in current section", "iclear", "info"
+            )
+            return
+
+        total = len(pages)
+        errors_count = 0
+        for page in pages:
+            full_path = page.full_path()
+            if not iclib.Tools.check_exists_file(full_path):
+                continue
+            errors = hp.validate_html(file_path=full_path)
+            if errors:
+                errors_count += 1
+                for line, msg in errors:
+                    self._editor.msg_srv.post_message(
+                        f"{page.short_path()} (line {line}): {msg}",
+                        "iclear", "error",
+                    )
+
+        if errors_count == 0:
+            self._editor.msg_srv.post_message(
+                f"All {total} files OK", "iclear", "info"
+            )
+        else:
+            self._editor.msg_srv.post_message(
+                f"Validated {total}, {errors_count} with errors",
+                "iclear", "warning",
+            )
+
     def refill_host(self):
-        """refilling nodnav (when the map changes)
-        saving nodnav as a dictionary"""
         nodedict = self.winnodnav.nodnav.get_dict()
         self.winnodnav.nodnav.host.refill(fill_sites=True, fill_mans=True)
         self.winnodnav.nodnav.set_dict(nodedict)

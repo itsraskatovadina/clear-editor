@@ -18,6 +18,7 @@ class IclearPlugin(PluginBase):
     def create_toolbar_widget(self, parent=None):
         self._widget = IclearWidget(
             open_file_cb=self._editor.file_tab_srv.add_tab,
+            editor=self._editor,
             parent=parent,
         )
         self._editor.file_tab_srv.editor_state_changed.connect(

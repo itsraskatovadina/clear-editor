@@ -218,19 +218,12 @@ class HTMLProcessingPlugin(PluginBase):
 
         self._editor.msg_panel.show_view("\n".join(html_lines))
 
-    def validate_html(self):
-        editor = self._editor.current_editor()
-        if editor is None:
-            return
-        text = editor.toPlainText()
-        fname = self._editor.current_file_name()
-
+    def _validate_text(self, text):
         clean = re.sub(r"<\?php[\s\S]*?\?>", "", text)
         clean = re.sub(r"<!--[\s\S]*?-->", "", clean)
 
         if not re.search(r"<[a-zA-Z/!]", clean):
-            self._post(f"File has no tags.")
-            return
+            return []
 
         tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>")
         stack = []
@@ -268,6 +261,25 @@ class HTMLProcessingPlugin(PluginBase):
             errors.append(
                 (line_num, f"Unclosed tag <{tag_name}> opened at line {line_num}")
             )
+
+        return errors
+
+    def validate_html(self, file_path=None):
+        if file_path:
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    text = f.read()
+            except Exception as e:
+                return [(0, str(e))]
+            return self._validate_text(text)
+
+        editor = self._editor.current_editor()
+        if editor is None:
+            return
+        text = editor.toPlainText()
+        fname = self._editor.current_file_name()
+
+        errors = self._validate_text(text)
 
         if not errors:
             self._post(f"No errors in {fname}.")
