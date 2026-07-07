@@ -3,6 +3,7 @@
 # Использование:
 #   ./scripts/status.sh        — показать статус
 #   ./scripts/status.sh edit   — открыть для редактирования (nano)
+#   вариант - сказать opencode "восстанови статус"
 
 STATUS_FILE="docs/session_status.md"
 

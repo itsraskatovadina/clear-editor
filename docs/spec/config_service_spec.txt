@@ -1,0 +1,184 @@
+СЕРВИС КОНФИГУРАЦИИ — ConfigService
+=======================================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Управление статической конфигурацией (config.json) и динамическим состоянием
+сессии (settings.ini). Предоставляет единый API для EditorApp.
+
+2. АРХИТЕКТУРА
+----------------
+
+  ConfigService (core/services/config_service.py)
+    ├── self.config : dict           ← загружается из config.json
+    └── self.settings : QSettings    ← привязан к settings.ini
+
+  EditorApp (core/editor_app.py) — делегирует ConfigService:
+    ├── load_config()         → ConfigService.__init__(path)
+    ├── restore_settings()    → cs.restore_window_geometry(), restore_font_size(), restore_recent_files()
+    ├── set_tab_panel()       → cs.restore_open_files()
+    └── closeEvent()          → cs.save_*() + cs.sync()
+
+  main.py:
+    ├── ConfigService — создаётся внутри EditorApp.load_config()
+    ├── editor_app.config["plugins_dir"] — используется для PluginManager
+    └── editor_app.settings — используется для active_plugins
+
+3. ФАЙЛЫ КОНФИГУРАЦИИ
+-----------------------
+
+3.1. config.json (статический, только для чтения)
+
+  Формат: JSON (UTF-8 без BOM)
+  Расположение: текущая рабочая директория
+  Содержимое:
+    {
+        "plugins_dir": "plugins",
+        "ui_defaults": {
+            "geometry/pos": [300, 180],
+            "geometry/size": [1000, 500]
+        }
+    }
+
+  Поля:
+    plugins_dir (str) — путь к директории плагинов (относительный или абсолютный)
+    ui_defaults (dict) — значения по умолчанию для настроек окна:
+      geometry/pos — [x, y] (int, int)
+      geometry/size — [w, h] (int, int)
+
+  При отсутствии файла → ConfigError("Отсутствует файл конфигурации {path}")
+  При повреждении JSON → ConfigError("Ошибка парсинга {path}: {e}")
+
+3.2. settings.ini (динамический, автоматический)
+
+  Формат: INI через QSettings.IniFormat
+  Расположение: текущая рабочая директория
+  Создаётся: автоматически QSettings при первом обращении
+  Содержимое:
+    [General]
+    active_plugins=wordcount,textprocessing
+
+    [open_files]
+    size=2
+    1\f=path/to/file1.php
+    2\f=path/to/file2.html
+
+    [recent_files]
+    size=1
+    1\f=path/to/file3.txt
+
+4. ПУБЛИЧНЫЙ API
+------------------
+
+  ConfigService(path="config.json")
+    Загружает config.json, создаёт QSettings("settings.ini", IniFormat).
+
+  .config : dict
+    Сырой словарь из config.json.
+
+  .settings : QSettings
+    Объект QSettings для settings.ini.
+
+  .get(key, default=None)
+    Достаёт значение из config.json.
+
+  .get_ui_defaults() → dict
+    Возвращает config["ui_defaults"] или {}.
+
+  .restore_window_geometry(window, default_pos, default_size)
+    Читает geometry/pos и geometry/size из settings.ini.
+    Если нет — использует default_pos/default_size.
+    default_pos = [x, y], default_size = [w, h].
+
+  .save_window_geometry(window)
+    Сохраняет pos() и size() окна в settings.ini.
+
+  .restore_font_size(default=12) → int
+  .save_font_size(size)
+
+  .restore_recent_files() → list[str]
+  .save_recent_files(files)
+    beginReadArray/beginWriteArray по ключу "recent_files".
+
+  .restore_open_files() → list[str]
+  .save_open_files(files)
+    beginReadArray/beginWriteArray по ключу "open_files".
+
+  .sync()
+    Вызывает settings.sync().
+
+5. ВАЛИДАЦИЯ (ПРЕДЛАГАЕМАЯ)
+-----------------------------
+
+5.1. plugins_dir
+
+  Добавить метод ConfigService.validate().
+
+  Проверки:
+    - Ключ "plugins_dir" присутствует в config
+    - Путь валиден (не содержит недопустимых символов для Linux и Windows)
+    - Директория существует (Path.exists() и Path.is_dir())
+
+  При ошибке — два варианта (выбрать при реализации):
+    Вариант А: вернуть список ошибок, main.py выводит в msg_panel
+               и запускается без поддержки плагинов
+    Вариант Б: raise ConfigError — приложение завершается
+
+5.2. ui_defaults
+
+  Проверки:
+    - ui_defaults — словарь (dict)
+    - geometry/pos — список из 2 чисел
+    - geometry/size — список из 2 чисел
+
+  При ошибке:
+    - Вывести сообщение в msg_panel
+    - Использовать жёсткие дефолты:
+        geometry/pos: [200, 150]
+        geometry/size: [1500, 900]
+
+6. ТЕСТЫ (ПРЕДЛАГАЕМЫЕ)
+--------------------------
+
+  Файл: tests/services/test_config_service.py
+
+6.1. config.json отсутствует → ConfigError
+
+  - Создать ConfigService с несуществующим путём
+  - Проверить: raises ConfigError с сообщением "Отсутствует"
+
+6.2. config.json с битым JSON → ConfigError
+
+  - Создать временный файл с некорректным JSON
+  - Проверить: raises ConfigError с сообщением "Ошибка парсинга"
+
+6.3. Валидация plugins_dir
+
+  - config.json с валидным plugins_dir → validate() не возвращает ошибок
+  - config.json без ключа plugins_dir → возвращает ошибку
+  - config.json с plugins_dir указывающим на несуществующую директорию → ошибка
+
+6.4. Валидация ui_defaults
+
+  - config.json с валидными ui_defaults → validate() не возвращает ошибок
+  - config.json с ui_defaults где geometry/pos не массив → ошибка, дефолт
+  - config.json с ui_defaults где geometry/pos массив из 1 числа → ошибка, дефолт
+  - config.json без ui_defaults → validate() не возвращает ошибок (опционально)
+
+6.5. settings.ini создаётся с дефолтами
+
+  - Запустить ConfigService во временной директории
+  - Проверить: settings.ini создан (файл существует)
+  - Прочитать geometry/pos до установки → None (QSettings не имеет значения)
+
+6.6. Сохранение/восстановление recent_files
+
+  - Сохранить список файлов через save_recent_files()
+  - Прочитать через restore_recent_files()
+  - Проверить: списки совпадают, порядок сохранён
+
+6.7. Open/recent files с удалённым файлом
+
+  - Сохранить список с существующим и несуществующим путём
+  - Восстановить: несуществующий путь не вызывает исключения
+  - Приложение продолжает работу

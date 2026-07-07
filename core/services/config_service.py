@@ -89,5 +89,43 @@ class ConfigService:
             self.settings.setValue("f", f)
         self.settings.endArray()
 
+    def validate(self) -> list:
+        errors = []
+        self._validate_plugins_dir(errors)
+        self._validate_ui_defaults(errors)
+        return errors
+
+    def _validate_plugins_dir(self, errors: list):
+        pd = self.config.get("plugins_dir")
+        if pd is None:
+            errors.append("config.json: missing key 'plugins_dir'")
+            return
+        if not isinstance(pd, str) or not pd.strip():
+            errors.append("config.json: 'plugins_dir' must be a non-empty string")
+            return
+        p = Path(pd)
+        if not p.exists():
+            errors.append(f"config.json: plugins_dir '{pd}' does not exist")
+        elif not p.is_dir():
+            errors.append(f"config.json: plugins_dir '{pd}' is not a directory")
+
+    def _validate_ui_defaults(self, errors: list):
+        ui = self.config.get("ui_defaults")
+        if ui is None:
+            return
+        if not isinstance(ui, dict):
+            errors.append("config.json: 'ui_defaults' must be a dict")
+            return
+        for key in ("geometry/pos", "geometry/size"):
+            val = ui.get(key)
+            if val is None:
+                errors.append(f"config.json: ui_defaults missing '{key}'")
+                continue
+            if not isinstance(val, list) or len(val) != 2:
+                errors.append(f"config.json: ui_defaults '{key}' must be a list of 2 ints")
+                continue
+            if not all(isinstance(v, int) for v in val):
+                errors.append(f"config.json: ui_defaults '{key}' must contain integers")
+
     def sync(self):
         self.settings.sync()

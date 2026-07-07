@@ -1,7 +1,7 @@
 # Session Status
 
 **Дата:** 2026-07-07
-**Этап:** Межплагинная связь iclear → htmlprocessing — базовая реализация ✅. Доработка: уровни page/cat/man/top, статус-бар, условное создание действия, полные пути.
+**Этап:** ConfigService — спецификация, валидация, тесты.
 
 ## Общий прогресс
 
@@ -13,44 +13,41 @@
 | EditorApp рефакторинг (ConfigSrv, ThemeSrv, status_bar) | ✅ закоммичено |
 | main.py реструктуризация | ✅ закоммичено |
 | iclear → FileTabSrv API + спецификация | ✅ закоммичено |
+| ConfigService — спецификация, валидация, тесты | ✅ закоммичено |
 
 ## Что сделано в последнюю сессию
 
-1. Межплагинная связь iclear → htmlprocessing:
-   - EditorApp: добавлен self.plugin_manager
-   - main.py: editor_app.plugin_manager = plugin_manager
-   - HTMLProcessing.validate_html() рефакторинг: _validate_text + file_path
-   - iclear: добавлен editor в IclearWidget, пункт "validate html" в меню
-   - _validate_all_pages() — базовая валидация всех page в man
-2. Документация:
-   - docs/todo.txt — спецификация требований к валидации
-   - report.txt (корень, gitignored) — план доработок
+1. **`docs/spec/config_service_spec.txt`** — новая спецификация ConfigService:
+   - Архитектура: ConfigService + EditorApp делегирование
+   - Форматы config.json и settings.ini
+   - Полный публичный API
+   - Правила валидации plugins_dir и ui_defaults (2 варианта: А — msg_panel, Б — ConfigError)
+   - План тестов (7 сценариев)
+
+2. **`core/services/config_service.py`** — добавлены методы валидации:
+   - `validate() → list[str]` — возвращает список ошибок
+   - `_validate_plugins_dir()` — проверяет наличие, тип, существование директории
+   - `_validate_ui_defaults()` — проверяет структуру geometry/pos и geometry/size
+   - **Не вызывается** нигде — мёртвый код, требует интеграции
+
+3. **`tests/services/test_config_service.py`** — 11 тестов:
+   - missing/broken config → ConfigError ✓
+   - valid config → no errors ✓
+   - plugins_dir: missing, not exists, is file ✓
+   - ui_defaults: bad type, bad geometry/pos (not list, wrong len, non-int) ✓
+   - missing ui_defaults → no errors ✓
+
+4. **`scripts/status.sh`** — добавлена подсказка про opencode.
 
 ## Текущее состояние (working tree)
 
-Незакоммичен: scripts/status.sh (добавлен комментарий).
-Ветка main опережает origin/main на 13 коммитов.
+Чисто — всё закоммичено.
 
-## Нужно доработать (из todo.txt → report.txt)
+## Что осталось за рамками (не делали)
 
-- Уровни: page, cat, man, top
-- Статус-бар во время валидации
-- Создание действия только при активном htmlprocessing
-- Полные пути для файлов с ошибками
-- Сообщение 'No files selected, nothing to validate'
-- Обновление спецификаций плагинов
-
-## Очередь (plan_plugins.txt)
-
-1. ~~iclear ✅~~
-2. **п.3** — межплагинная связь iclear → htmlprocessing
-3. **п.4** — доработки плагинов:
-   - 4.1 HTMLProcessing → HTMLTools, перенос в Tools
-   - 4.2 TextProcessing — Wrap произвольным тегом
-   - 4.3 TextProcessing — Вставка шаблонов
-   - 4.4 Настройка видимости тулбаров и панелей
-   - 4.5 ~~спецификации плагинов ✅~~
-4. **п.6** — меню плагинов дублируются (plugin_ui.find_menu_by_text)
+- Интеграция вызова validate() в EditorApp/main.py
+- Отображение ошибок валидации в msg_panel
+- Обновление `docs/spec/state_spec.txt` (устарел)
 
 ## Документы
 
@@ -59,5 +56,6 @@
 | `docs/master_plan.txt` | Общий план рефакторинга |
 | `docs/plan_editor_app.txt` | План рефакторинга EditorApp |
 | `docs/plan_plugins.txt` | Сводный план по плагинам |
+| `docs/spec/config_service_spec.txt` | Спецификация ConfigService |
 | `docs/spec/plugins/iclear_spec.txt` | Спецификация плагина iclear |
 | `docs/todo.txt` | Хотелки и текущие задачи |
