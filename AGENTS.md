@@ -61,7 +61,7 @@ Run from project root: `PYTHONPATH=. python3 tests/…`
 - **Window icon**: `icons/clear.svg`. Test scripts may reference `icons/clear_test.jpg` or `icons/clear1.jpg`.
 - **Recent files**: capped at 10, persisted via QSettings.
 - **Config `config.json`**: must contain at least `{"plugins_dir": "plugins"}`.
-- **`docs/spec/`**: Актуальные спецификации; `docs/spec/ver1.0/` — архив устаревших.
+- **`docs/spec/`**: Актуальные спецификации сервисов (ConfigService и др.); `docs/spec/plugins/` — только спеки плагинов; `docs/spec/ver1.0/` — архив устаревших (до рефакторинга).
 - All imports use the repo-root package layout (e.g. `from core.editor_app import EditorApp`).
 - Язык переговоров и отчётов по умолчанию — русский.
 - Комментарии в коде писать на английском.
