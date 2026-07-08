@@ -17,33 +17,23 @@
 
 ## Что сделано в последнюю сессию
 
-### ConfigService — валидация ✅
-- `core/services/config_service.py` — методы `_validate_plugins_dir()`, `_validate_ui_defaults()`
-- `docs/spec/config_service_spec.txt` — спецификация ConfigService
-- `tests/services/test_config_service.py` — 11 тестов
-- Рефакторинг `EditorApp.restore_settings()` — вызов `_validate_ui_defaults()` с отправкой ошибок в msg_panel
-- Удалён мёртвый метод `validate()`
+### WordCount plugin + спецификации + чистка архива ✅
+- `plugins/wordcount/` — плагин WordCount (status_bar, сигнал word_count_changed)
+- `docs/spec/plugins_service_spec.txt` — спецификация PluginManager/Registry/Loader/UI
+- `docs/spec/file_tab_service_spec.txt` — спецификация FileTabSrv/FileTabView/EditorWidget
+- `docs/spec/plugins/word_count_spec.txt` — спецификация плагина WordCount
+- `docs/spec/plugins/iclear_spec.txt` — объединена с ru/iclear_spec.txt (добавлены: структура сайта, iclearlib, wiclear)
+- `docs/spec/ver1.0/` — удалён (21 устаревший файл)
+- `docs/refactoring/CHANGELOG.md` — исправлен русский текст (Диаграммы → Diagrams)
+- Committed + pushed (5687d12)
 
-## Текущая задача: финализация v3.0
+## Текущая задача: завершена
 
-Завершение рефакторинга основного приложения (кроме плагинов).
-Всё, что делалось начиная с git tag v1.0 до сих пор — рефакторинг с попутными изменениями.
-
-### План работ
-
-1. Создать `docs/refactoring/` — собрать CHANGELOG и конспекты планов
-2. UML: `class_diagram.mmd` → `class_diagram_v2.mmd`, создать `class_diagram_v3.mmd`
-3. CHANGELOG.md — дополнить для v3.0, переместить в refactoring/
-4. Конспекты планов: master_plan, plan_editor_app, plan_plug_manager, plan_msg_srv, plan_plugins
-5. Недостающие спецификации
-6. README.md — проверка и обновление
-7. git tag v3.0
+Все задачи из docs/todo.txt выполнены. Ожидание новых указаний.
 
 ## Текущее состояние (working tree)
 
-- `docs/todo.txt` — изменён (новая задача)
-- `ANCHORED_SUMMARY.md` — неотслеживаемый
-- `docs/todo2.txt` — неотслеживаемый
+- `ANCHORED_SUMMARY.md` — неотслеживаемый (не наш)
 
 ## Документы
 
@@ -56,6 +46,9 @@
 | `docs/plan_msg_srv.txt` | План извлечения MessageSrv |
 | `docs/spec/config_service_spec.txt` | Спецификация ConfigService |
 | `docs/spec/msg_service_spec.txt` | Спецификация MessageSrv |
+| `docs/spec/plugins_service_spec.txt` | Спецификация PluginManager/Registry/Loader/UI |
+| `docs/spec/file_tab_service_spec.txt` | Спецификация FileTabSrv |
 | `docs/spec/plugins/iclear_spec.txt` | Спецификация плагина iclear |
 | `docs/spec/plugins/htmlprocessing_spec.txt` | Спецификация HTMLProcessing |
+| `docs/spec/plugins/word_count_spec.txt` | Спецификация WordCount |
 | `docs/todo.txt` | Текущие задачи |
