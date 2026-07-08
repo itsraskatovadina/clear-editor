@@ -13,7 +13,7 @@
 - **Session status** tracking added (`docs/session_status.md`, `scripts/status.sh`)
 - **AGENTS.md:** added project conventions, test commands, session workflow
 
-> Диаграммы: [`docs/UML/class_diagram_v3.mmd`](UML/class_diagram_v3.mmd) (v3.0) · [`docs/UML/class_diagram_v2.mmd`](UML/class_diagram_v2.mmd) (v2.0) · [`docs/UML/architecture_overview.md`](UML/architecture_overview.md)
+> Diagrams: [`docs/UML/class_diagram_v3.mmd`](UML/class_diagram_v3.mmd) (v3.0) · [`docs/UML/class_diagram_v2.mmd`](UML/class_diagram_v2.mmd) (v2.0) · [`docs/UML/architecture_overview.md`](UML/architecture_overview.md)
 
 ---
 
@@ -25,7 +25,7 @@
 - **Updated** all imports project-wide, dropped old `core/tab_panel` references
 - **Removed** old `test_file_edit.py`, `test_tab_panel.py`, `test_msg_panel.py`
 
-> Диаграммы: [`docs/UML/class_diagram_v2.mmd`](UML/class_diagram_v2.mmd) (v2.0) · [`docs/UML/architecture_overview.md`](UML/architecture_overview.md)
+> Diagrams: [`docs/UML/class_diagram_v2.mmd`](UML/class_diagram_v2.mmd) (v2.0) · [`docs/UML/architecture_overview.md`](UML/architecture_overview.md)
 
 ### v2.0-rc — pre-MVS refactorings
 
@@ -47,7 +47,7 @@
 - Plugin system without service layer
 - Early test scripts for manual visual inspection
 
-> Диаграммы: [`docs/UML/class_diagram_v1.mmd`](UML/class_diagram_v1.mmd) (v1.0)
+> Diagrams: [`docs/UML/class_diagram_v1.mmd`](UML/class_diagram_v1.mmd) (v1.0)
 
 ---
 

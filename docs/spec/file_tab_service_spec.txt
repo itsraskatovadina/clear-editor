@@ -1,0 +1,125 @@
+СЕРВИС ВКЛАДОК — FileTabSrv
+==============================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Управление вкладками редактора: открытие, закрытие, сохранение,
+переключение, отслеживание изменений.
+
+2. АРХИТЕКТУРА
+----------------
+
+  FileTabSrv (core/services/file_tab_srv.py)
+    ├── _view: FileTabView           (core/views/file_tab_view.py)
+    ├── _model: FileTabModel         (core/models/file_tab_models.py)
+    ├── _widgets: List[EditorWidget] (core/views/editor_widget.py)
+    └── _editor_class — класс редактора (по умолч. HTMLEditor)
+
+  EditorApp.core/editor_app.py:
+    file_tab_view = FileTabView(parent=self)
+    file_tab_srv  = FileTabSrv(file_tab_view, editor_class=HTMLEditor, parent=self)
+
+3. FileTabView (core/views/file_tab_view.py)
+-----------------------------------------------
+
+  QTabWidget. Сигналы:
+    close_requested(int)   — ретрансляция tabCloseRequested
+    current_changed(int)   — ретрансляция currentChanged
+    tab_moved(int, int)    — ретрансляция tabMoved
+
+  Методы:
+    add_editor_tab(widget, title, tooltip="") -> int
+    set_tab(index, text, tooltip="")
+    remove_editor_tab(index)
+    editor_at(index) -> QWidget (EditorWidget)
+
+4. FileTabModel (core/models/file_tab_models.py)
+--------------------------------------------------
+
+  Хранит список Document (core/models/document.py).
+  Методы: add, remove, at, index_of, index_of_doc, current, set_current,
+           move_doc, all_docs, count.
+
+5. FileTabSrv (core/services/file_tab_srv.py)
+-----------------------------------------------
+
+  QObject. Сигналы:
+    editor_state_changed(str name, str fname, str mod_label, str operation)
+      operation: "New", "Opened", "Saved", "Saved as", "Reload",
+                 "Reopened", "tab_changed", "modification_changed"
+    message(str, str, str)
+    line_changed(int)
+
+  --- Создание / добавление вкладок ---
+
+  new_tab()
+    add_tab(None)
+
+  add_tab(path: Path | None) -> bool
+    Если файл уже открыт — переключает на его вкладку.
+    Иначе создаёт Document + EditorWidget, загружает файл.
+
+  --- Закрытие ---
+
+  close_tab(index, close_last_tab=False) -> bool
+    Если изменён — QMessageBox (Save/Ignore/Cancel).
+    Не даёт закрыть последнюю вкладку (кроме close_last_tab=True).
+
+  close_all_tab() -> bool
+
+  --- Сохранение / перезагрузка ---
+
+  current_tab_save()
+  current_tab_save_as()
+  current_tab_reload()
+  current_tab_close()
+  current_tab_view_property()
+
+  --- Открытие файла ---
+
+  open_file()
+    QFileDialog, вызывает add_tab.
+
+  --- Сессия ---
+
+  get_open_files() -> list[str]
+  set_files(file_list) -> int (сколько открыто)
+
+  --- Публичный API для EditorApp ---
+
+  current_editor() -> QTextEdit | None
+    Текущий HTMLEditor (editor_widget.editor).
+
+  current_widget() -> EditorWidget | None
+
+  current_document() -> Document | None
+
+  tab_count() -> int
+
+  --- Внешние изменения ---
+
+  on_app_focus_changed(old, now)
+    При фокусе проверяет is_externally_modified(), предлагает Reload/Save/Ignore.
+
+6. EditorWidget (core/views/editor_widget.py)
+-----------------------------------------------
+
+  QWidget-обёртка над QTextEdit.
+
+  Сигналы:
+    modification_changed()
+    cursor_position_changed(int)
+
+  Свойства:
+    .editor — экземпляр editor_class (HTMLEditor / QTextEdit)
+
+  У editor (QTextEdit) доступны сигналы:
+    textChanged()
+    cursorPositionChanged()
+    document().modificationChanged(bool)
+
+7. ТЕСТЫ
+-----------
+
+  Файл: tests/test_file_tab_model.py (model, без Qt)
+  Файл: tests/test_file_tab_srv.py (визуальный, с Qt-окном)

@@ -2,15 +2,191 @@
 ==================================================
 
 1. НАЗНАЧЕНИЕ
---------------
+---------------
 Плагин для навигации по файловой структуре PHP-сайта itsclear.ru.
 Предоставляет тулбар с иерархическими списками (host → site → top → man → cat → page)
 для быстрого перехода между страницами сайта и генерации вспомогательного кода.
 
-2. ВЗАИМОДЕЙСТВИЕ С ОСНОВНЫМ ПРИЛОЖЕНИЕМ
----------------------------------------------
+Пакет iclear состоит из двух модулей:
+  - iclearlib.py — библиотека классов для представления файловой структуры
+    сайта (дерево узлов), навигации, генерации index.php, aside.php,
+    проверки целостности карты сайта (map.xml).
+  - wiclear.py — набор PyQt5-виджетов для визуального выбора страницы
+    или директории сайта и выполнения операций.
 
-2.1. Жизненный цикл
+2. ФАЙЛОВАЯ СТРУКТУРА САЙТА itsclear.ru
+------------------------------------------
+Уровни иерархии (сверху вниз):
+
+  host  — корень хоста (apache), содержит map.xml, делящий сайт на разделы
+  site  — подраздел (app/, ref/, resources/, map.xml, index.php)
+  top   — группа справочников (папка в ref/), например it, school, web
+  man   — справочник (manual), содержит app/, pages/, phpinc/, resources/
+  cat   — категория страниц (папка в pages/)
+  page  — отдельная страница (*.php)
+
+Уровни описаны в Iclear.levels_list:
+  ['host', 'site', 'top', 'man', 'cat', 'page']
+
+2.1. Структура site:
+  site/
+  ├── app/
+  │   ├── fonts/
+  │   ├── scripts/
+  │   └── styles/
+  ├── ref/
+  │   ├── topic_1/
+  │   └── topic_2/
+  ├── resources/
+  ├── index.php
+  └── map.xml
+
+2.2. Структура man (справочник):
+  man/
+  ├── app/
+  │   ├── css/
+  │   └── scripts/
+  ├── pages/
+  │   ├── category_1/
+  │   └── category_2/
+  ├── phpinc/
+  │   ├── aside.php
+  │   ├── header.php
+  │   └── parthead.php
+  ├── resources/
+  │   └── examples/
+  ├── index.php
+  └── map.xml
+
+2.3. Файлы map.xml
+Файлы map.xml находятся на трёх уровнях: host, site, man. Каждый уровень
+имеет свою структуру вложенности.
+
+**Уровень host** — одноуровневый список site-разделов.
+Используется для формирования ссылок в корневом index.php.
+
+**Уровень site** — навигатор по первому уровню разделов справочников.
+Глубина вложенности — 2 уровня (top → man).
+
+**Уровень man** — навигатор по второму уровню, конечные ссылки —
+страницы. Глубина вложенности — 2 уровня (cat → page).
+
+Атрибуты элементов li (используются в iclearlib для навигации,
+генерации index.php, aside.php и проверки целостности сайта):
+
+  `data-name`   — Техническое имя (латиница, CamelCase)
+  `data-fname`  — Полное английское название
+  `data-id`     — Уникальный идентификатор для URL/якорей
+  `data-path`   — Относительный путь к странице
+  `data-runame` — Русскоязычное отображаемое имя
+
+3. МОДУЛЬ iclearlib.py
+-------------------------
+
+3.1. ANode (базовый узел дерева)
+  - nid (str) — уникальный идентификатор
+  - parent, children — ссылки на родителя и список потомков
+  - lvl (int) — уровень в дереве
+  - set_parent(node), add_child(node), add_children(list)
+  - find_child(nid) — поиск по всему поддереву
+  - travers(func) — обход поддерева вниз с вызовом func
+  - render(), render_info() — вывод дерева
+
+3.2. Iclear (конфигурация, static)
+  - levels_list = ['host', 'site', 'top', 'man', 'cat', 'page']
+  - levels_index — словарь {имя_уровня: номер}
+  - topdir = "ref", pagedir = "pages", phpincdir = "phpinc"
+  - pageext = ".php", mapname = "map.xml"
+  - is_level(level), num_level(level)
+  - next_level(level), prev_level(level)
+  - call_func_by_levels(func)
+
+3.3. INode(ANode) — узел с атрибутами уровня
+  - nid, level, name, fname, runame, path
+  - info(), finfo()
+
+3.4. IHost(ANode) — корень хоста
+  - hostpath, sitepath
+  - full_path() — объединение hostpath + sitepath
+  - fill() — парсит map.xml, создаёт ISite-узлы
+
+3.5. ISite(INode) — подраздел сайта
+  - full_path(), fill_sites(), fill_mans()
+
+3.6. ITop(INode) — группа справочников
+
+3.7. IMan(INode) — справочник
+  - short_path(), full_path()
+  - fill() — парсит map.xml, создаёт ICat + IPage
+
+3.8. ICat(INode) — категория страниц
+  - short_path(), full_path()
+
+3.9. IPage(INode) — страница
+  - short_path(), full_path()
+
+3.10. NodesNav — состояние навигации
+  - host, site, top, man, cat, page (атрибуты-узлы)
+  - set_dict(dict) — установка узлов по словарю {site, top, man, cat, page}
+  - get_dict() — возвращает словарь
+  - get_url() — генерация URL вида:
+    http://host/site/ref/top/man/pages/cat/page.php
+  - set_from_url(url) — парсинг URL в узлы
+  - set_from_page_path(path) — парсинг файлового пути
+
+3.11. Service — генераторы и утилиты
+  - gen_plug_pagephp(page) — создаёт шаблон *.php страницы
+  - gen_index_phpinc(man) — генерирует index.php + phpinc/*.php
+  - gen_root_indexphp(site) — генерирует корневой index.php раздела
+  - gen_indexphp(man) — index.php справочника
+  - gen_asidephp(man) — aside.php (боковое меню)
+  - gen_headerphp(man) — header.php
+  - gen_partheadphp(man) — parthead.php
+  - check_map(man) — проверка уникальности id и path в карте
+  - diff_map_by_dir(man) — сверка map.xml с файловой структурой,
+    переносит лишние файлы в pages/errtemp
+
+3.12. Tools — утилиты
+  - set_output(stdout, outhandler) — настройка вывода
+  - output(text, type) — вывод с цветом (ошибки красным)
+  - check_exists_file(fname) — проверка существования файла
+  - write_file(fname, text) — запись файла
+
+4. МОДУЛЬ wiclear.py
+-----------------------
+Виджеты PyQt5:
+
+4.1. WinNode(QWidget) — селектор одного уровня
+  - QLabel (название уровня) + QComboBox (список узлов)
+  - fill_list() — заполнение списка из NodesNav
+  - При изменении обновляет NodesNav и каскадно перезаполняет
+    селекторы следующих уровней
+
+4.2. WinNodesNav(QWidget) — панель навигации (site → top → man → cat → page)
+  - Содержит 5 WinNode: wsite, wtop, wman, wcat, wpage
+  - set_nodnav(level, node) — установка узла в NodesNav
+  - refill() — перезаполнение всех списков
+
+4.3. IclearWidget(QWidget) — основная панель инструментов
+  - WinNodesNav + кнопки:
+    - URL — ввод/редактирование URL (QInputDialog)
+    - Open — открытие страницы в редакторе
+    - Menu ("...") — выпадающее меню с операциями:
+      * xdg_open — открытие в браузере
+      * refill host — перезагрузка карты сайта
+      * gen_index_and_phpinc — генерация index.php + phpinc
+      * gen_plug_pagephp — создание шаблона страницы
+      * gen_content_list — генерация списка содержимого
+      * check_map — проверка map.xml
+
+4.4. IclearSettingDialog(QDialog) — настройки
+  - hostpath (apache sites dir)
+  - sitepath (additional path)
+
+5. ИНТЕГРАЦИЯ С ClearEditor
+----------------------------
+
+5.1. Жизненный цикл
 
                PluginManager.activate()
                          │
@@ -26,7 +202,7 @@
                          │
                     on_unload()
 
-2.2. Используемые API EditorApp
+5.2. Используемые API EditorApp
 
   editor.file_tab_srv.add_tab(path: Path)
     └─ Открытие файла в редакторе (по нажатию "Open" в iclear)
@@ -38,7 +214,7 @@
   editor.file_tab_srv.current_document()
     └─ Текущий документ (для инициализации при старте)
 
-2.3. Схема соединений
+5.3. Схема соединений
 
   file_tab_srv.editor_state_changed
     └─ operation in ("tab_changed","Opened","Reload","Reopened")
@@ -48,8 +224,8 @@
   IclearWidget (кнопка "Open")
     └─ open_file_cb(Path) → file_tab_srv.add_tab(Path)
 
-3. ФОРМАТ UI
--------------
+5.4. Формат UI
+
 - QWidget с QHBoxLayout:
   + [⚙] — кнопка Settings (открытие IclearSettingDialog)
   + [site│top│man│cat│page] — WinNodesNav (QComboBox на каждый уровень)
@@ -57,8 +233,8 @@
   + [📂] — кнопка Open (открытие/переход к странице)
   + [...] — меню (xdg_open, refill, генерация кода)
 
-4. НАВИГАЦИЯ
--------------
+5.5. Навигация
+
 Данные загружаются из map.xml (на каждом уровне — своя карта).
 NodesNav хранит текущий путь: site → top → man → cat → page.
 Уровни: host (невидимый), site, top, man, cat, page.
@@ -68,7 +244,7 @@ NodesNav хранит текущий путь: site → top → man → cat → 
   передаёт полный путь, парсится через NodesNav.set_from_page_path(),
   обновляются QComboBox на всех уровнях.
 
-5. ИСПОЛЬЗУЕМЫЕ КЛАССЫ
+6. ИСПОЛЬЗУЕМЫЕ КЛАССЫ
 ------------------------
 - IclearPlugin (main.py) — PluginBase, точка входа
 - IclearWidget (wiclear.py) — основной виджет тулбара
@@ -76,16 +252,17 @@ NodesNav хранит текущий путь: site → top → man → cat → 
 - NodesNav, IHost, ISite, ITop, IMan, ICat, IPage (iclearlib.py) — модель данных
 - IclearSettingDialog — настройка путей hostpath/sitepath
 
-6. МЕЖПЛАГИННАЯ СВЯЗЬ
+7. МЕЖПЛАГИННАЯ СВЯЗЬ
 -----------------------
 
-6.1. Зависимость: HTMLProcessing
+7.1. Зависимость: HTMLProcessing
   - Плагин iclear вызывает htmlprocessing.validate_html(file_path) для валидации HTML
   - Плагин HTMLProcessing должен быть активирован для работы функции валидации
-  - Пункт меню "validate html" создаётся динамически: появляется только если HTMLProcessing активен
-    (проверка через editor.plugin_manager.get_active("htmlprocessing") при каждом открытии меню)
+  - Пункт меню "validate html" создаётся динамически: появляется только если
+    HTMLProcessing активен (проверка через editor.plugin_manager.get_active("htmlprocessing")
+    при каждом открытии меню)
 
-6.2. Метод _validate_all_pages()
+7.2. Метод _validate_all_pages()
 
   Вызывается из пункта меню "validate html". Поведение зависит от уровня навигации:
 
@@ -105,14 +282,14 @@ NodesNav хранит текущий путь: site → top → man → cat → 
     - Статус-бар очищается
     - Сообщение: "All {total} files OK" или "Validated {total}, {errors_count} with errors"
 
-6.3. Доступ к plugin_manager
+7.3. Доступ к plugin_manager
 
   editor.plugin_manager устанавливается в main.py:
     editor_app.plugin_manager = plugin_manager
     (PluginManager — дочерний QObject EditorApp)
 
-7. ПРИВЯЗКА К ПРИЛОЖЕНИЮ
---------------------------
+8. ПРИВЯЗКА К ПРИЛОЖЕНИЮ
+---------------------------
   main.py:
     plugin_manager.activate("iclear", editor_app)
       → IclearPlugin.on_load(editor_app)
@@ -124,7 +301,7 @@ NodesNav хранит текущий путь: site → top → man → cat → 
     plugin_manager.get_active() — доступ к активным плагинам
     statusBar.showMessage()    — вывод в статус-бар
 
-8. ПЛАН ДОРАБОТКИ
+9. ПЛАН ДОРАБОТКИ
 -------------------
   Отделить конкретный вид обработки (валидация, генерация кода и т.д.)
   от выбора файлов. Идея:
@@ -134,3 +311,9 @@ NodesNav хранит текущий путь: site → top → man → cat → 
       реализуется внешними плагинами
     - iclear предоставляет механизм: "вот список файлов — кто хочет обработать?"
     - Это позволит добавлять новые виды обработки без изменения кода iclear
+
+10. СОГЛАШЕНИЯ
+----------------
+- Все идентификаторы (nid) уникальны в пределах своего уровня.
+- PHP-файлы (кроме index.php и phpinc/) находятся только в pages/.
+- Ресурсы — в resources/, стили/скрипты — в app/.

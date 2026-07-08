@@ -1,0 +1,69 @@
+ПЛАГИН WORDCOUNT — Счётчик слов в статус-баре
+===============================================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Отображает количество слов в текущем редакторе в поле статус-бара.
+Автоматически обновляется при изменении текста и переключении вкладок.
+
+2. ЖИЗНЕННЫЙ ЦИКЛ
+-------------------
+
+  PluginManager.activate()
+    → on_load(editor) — сохраняет EditorApp, подключается к сигналам
+    → plugin_ui строит QLabel в statusBar
+
+  PluginManager.deactivate()
+    → remove_ui удаляет QLabel
+    → on_unload() — отключает сигналы
+
+3. ДЕКЛАРАЦИЯ
+---------------
+
+  status_fields = {
+      "word_count": {
+          "label_template": "Word: {}",
+          "signal_name": "word_count_changed"
+      }
+  }
+
+  Сигнал: word_count_changed(int)
+    Испускается при каждом обновлении счёта.
+    PluginUI подключает его к QLabel.setText с форматированием "Word: {count}".
+
+  menu_items / toolbar_items: не используются.
+
+4. ПОДКЛЮЧЕНИЕ К EDITORAPP
+----------------------------
+
+  on_load(editor):
+    1. Сохраняет ссылку на EditorApp
+    2. Для всех существующих вкладок:
+         подключается к editor_widget.editor.textChanged
+    3. Подписывается на editor_state_changed:
+         при операциях "Opened" / "New" подключается к новой вкладке
+    4. Подписывается на file_tab_view.current_changed:
+         пересчёт при переключении вкладки
+    5. Запускает подсчёт для текущей вкладки
+
+  on_unload:
+    Отключается от всех textChanged, editor_state_changed, current_changed.
+    Очищает set подключённых редакторов.
+
+5. ПОДСЧЁТ СЛОВ
+-----------------
+
+  _update_count():
+    1. Берёт editor = editor_app.current_editor() (QTextEdit)
+    2. Если editor is None → word_count_changed.emit(0)
+    3. Иначе: text = editor.toPlainText()
+    4. count = len(text.split()) если text.strip() иначе 0
+    5. word_count_changed.emit(count)
+
+6. ЗАВИСИМОСТИ
+----------------
+
+  - plugins_service.plugin_base.PluginBase
+  - EditorApp (core.editor_app)
+  - FileTabSrv.editor_state_changed сигнал
+  - FileTabView.current_changed сигнал

@@ -1,16 +1,22 @@
 ЗАВЕРШЕНИЕ РЕФАКТОРИНГА
-Завершение рефакторинга основного приложения (кроме плагинов)
-то чем мы занимались начиная с git tag v1.0 до сих пор можно назвать рефакторингом с попутными изменениями
 
-внимательно смотрим весь код (кроме плагинов) нет ли там явных дефектов кода и архитектуры
- 
-1. ставим git tag v3.0
-2. создаем в docs/ папку refactoring
-3. UML/class_diagram.mmd переменовываем в class_diagram_v2.mmd, создаем UML/class_diagram_v3.mmd
-4. CHANGELOG.md дополняем и перемещаем в папку refactoring
-5. Делаем краткий конспект master_plan.txt, plan_editor_app.txt, plan_plug_manager.txt,
- plan_msg_srv.txt, master_plan.txt, plan_plugins.txt.
-  План рефакторинга TabPanel+FileEditor → FileTabView+FileTabSrv+FileTabModel+EditorWidget потерян.
-  Отражаем процесс перехода по шагам.
-6. создаем недостающие спецификации
-7. readme.md проверяем на соответствие проекту
+1. создать плагин WordCount - пример плагина подключенного к полю в QStatusBar (он был удален)
+старая спецификация, сейчас декларация должна измениться:
+Плагин 'WordCount' — подсчёт слов в QTextEdit.
+   Декларация:
+     status_fields = {"word_count": {"label_template": "Word: {}",
+                                     "signal_name": "word_count_changed"}}
+   Сигнал: word_count_changed(int)
+    on_load(editor): получает EditorApp, подключается ко ВСЕМ вкладкам
+     editor.tab_panel (textChanged), подписывается на tab_added
+     (подключение к новым вкладкам) и currentChanged (пересчёт при
+     переключении), запускает подсчёт.
+   on_unload: отключается от всех textChanged, tab_added, currentChanged.
+   menu_items/toolbar_items: не используются.
+
+2. создать спецификации  plugins_service_spec.txt, file_tab_service_spec.txt в папке  docs/spec
+и word_count_spec.txt в папке  docs/spec/plugins
+
+3. В англоязычном CHANGELOG.md присутствует русское 'Диаграммы', заменить на Diagrams,
+ и посмотри что бы там больше русского текста не было
+

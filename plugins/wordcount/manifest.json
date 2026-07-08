@@ -1,0 +1,6 @@
+{
+    "name": "wordcount",
+    "description": "Word counter in status bar",
+    "entry": "main.py",
+    "class": "WordCountPlugin"
+}

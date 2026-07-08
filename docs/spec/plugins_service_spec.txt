@@ -1,0 +1,174 @@
+СЕРВИС ПЛАГИНОВ — PluginsService
+=====================================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Управление жизненным циклом плагинов: обнаружение, загрузка, активация/деактивация,
+построение UI (меню, тулбары, док-виджеты, поля статус-бара).
+
+2. АРХИТЕКТУРА
+----------------
+
+  plugins_service/
+    plugin_base.py         — PluginBase (абстрактный базовый класс)
+    plugin_manager.py      — PluginManager (фасад)
+    models/
+      plugin_registry.py   — PluginRegistry (model: реестр доступных/активных)
+    services/
+      plugin_loader.py     — PluginLoader (service: загрузка с диска)
+    views/
+      plugin_ui.py         — PluginUI (view: построение/удаление UI)
+
+  main.py — DI-сборка:
+    registry = PluginRegistry()
+    loader   = PluginLoader()
+    ui       = PluginUI()
+    manager  = PluginManager(registry, loader, ui, parent=editor_app,
+                             plugins_dir=config["plugins_dir"])
+
+3. PluginBase (plugins_service/plugin_base.py)
+------------------------------------------------
+
+  Базовый класс для всех плагинов. Наследует QObject.
+
+  Атрибуты класса:
+    name (str)            — уникальное имя плагина (ключ для registry)
+    description (str)     — описание для UI
+    actions (List[dict])  — список экшенов [{"id", "text", "callback", ...}]
+    menu_items (List[dict])  — декларация пунктов меню
+    toolbar_items (List[dict]) — декларация кнопок тулбара
+    status_fields (Dict[str, dict]) — поля в статус-баре:
+        {"field_name": {"label_template": "Word: {}",
+                        "signal_name": "signal_name"}}
+    dock_area — область для док-виджета (Qt.DockWidgetArea, по умолч. Bottom)
+
+  Методы:
+    on_load(editor)     — вызывается при активации; editor = EditorApp
+    on_unload()         — вызывается при деактивации
+    create_dock_widget(parent) -> QWidget | None — опционально
+    create_toolbar_widget(parent) -> QWidget | None
+
+4. PluginRegistry (plugins_service/models/plugin_registry.py)
+---------------------------------------------------------------
+
+  Хранилище данных. Не QObject.
+
+  --- available ---
+    register(name, manifest) / unregister(name)
+    is_available(name) -> bool
+    get_available() -> List[dict]
+    get_manifest(name) -> dict | None
+
+  --- active ---
+    set_active(name, plugin) / remove_active(name) -> PluginBase | None
+    is_active(name) -> bool
+    get_active(name) / get_all_active() -> Dict[str, PluginBase]
+    list_active_names() -> List[str]
+
+  --- ui state ---
+    set_ui_state(name, state) / remove_ui_state(name) -> dict | None
+    get_ui_state(name) -> dict | None
+
+    ui_state = {
+        "labels": [QLabel, ...],
+        "menu_ui_objects": [("action"/"menu"/"menu_button", obj), ...],
+        "toolbars": [QToolBar, ...],
+        "docks": [QDockWidget, ...],
+    }
+
+5. PluginLoader (plugins_service/services/plugin_loader.py)
+-------------------------------------------------------------
+
+  QObject. Сигналы: plugin_loaded(str), plugin_error(str, str).
+
+  discover(plugins_dir, registry):
+    Сканирует папки в plugins_dir, читает manifest.json, регистрирует.
+
+  load(name, registry) -> PluginBase | None:
+    Загружает модуль плагина по manifest.entry, инстанциирует класс manifest.class.
+
+  deactivate(name, registry):
+    Вызывает plugin.on_unload(), удаляет из active.
+
+6. PluginUI (plugins_service/views/plugin_ui.py)
+--------------------------------------------------
+
+  QObject. Строит и удаляет элементы UI плагина.
+
+  build_status_fields(editor, plugin) -> List[QLabel]:
+    Для каждого поля из plugin.status_fields:
+      - Создаёт QLabel в statusBar
+      - Подключает signal_name плагина к label.setText с label_template
+
+  build_menu(editor, name, plugin) -> List:
+    Строит меню из plugin.menu_items.
+    Ищет существующее меню через findChild(QMenu, text).
+
+  build_toolbar(editor, name, plugin) -> (List, List[QToolBar]):
+    Строит тулбар из plugin.toolbar_items и plugin.create_toolbar_widget().
+
+  build_dock(editor, plugin) -> List[QDockWidget]:
+    Создаёт док-виджет из plugin.create_dock_widget().
+
+  build_all(editor, name, plugin) -> dict:
+    Вызывает build_status_fields + build_menu + build_toolbar + build_dock.
+    Сохраняет ui_state через registry.set_ui_state().
+
+  remove_ui(editor, name, registry):
+    Удаляет все сохранённые UI-элементы (labels, actions, toolbars, docks).
+
+7. PluginManager (plugins_service/plugin_manager.py)
+------------------------------------------------------
+
+  QObject. Фасад для PluginRegistry + PluginLoader + PluginUI.
+
+  discover()            — делегирует loader.discover()
+  get_available()        — делегирует registry.get_available()
+  activate(name, editor) — загружает, вызывает on_load, строит UI
+  deactivate(name)       — удаляет UI, вызывает on_unload
+  get_active(name)       — registry.get_active()
+  get_all_active()       — registry.get_all_active()
+
+8. ЖИЗНЕННЫЙ ЦИКЛ ПЛАГИНА
+----------------------------
+
+  activate:
+    loader.load(name, registry)  → plugin
+    plugin.on_load(editor)
+    registry.set_active(name, plugin)
+    ui.build_all(editor, name, plugin)
+
+  deactivate:
+    ui.remove_ui(editor, name, registry)
+    loader.deactivate(name, registry)  → plugin.on_unload()
+
+9. СТРУКТУРА ПАПКИ ПЛАГИНА
+-----------------------------
+
+  plugins/<name>/
+    manifest.json   — {"name", "description", "entry", "class"}
+    main.py         — entry-скрипт (или другое имя из entry)
+    ...
+
+10. ФОРМАТ manifest.json
+--------------------------
+
+  {
+      "name": "plugin_name",
+      "description": "Human-readable description",
+      "entry": "main.py",
+      "class": "PluginClassName"
+  }
+
+  Поле name должно совпадать с plugin.name.
+
+11. ТЕСТЫ
+-----------
+
+  Файл: tests/plugin_loader_test.py, tests/plugin_registry_test.py
+
+  - PluginRegistry: register/get_available/get_manifest
+  - PluginRegistry: set_active/is_active/remove_active
+  - PluginRegistry: set_ui_state/remove_ui_state
+  - PluginLoader: discover с валидным/битым/отсутствующим manifest.json
+  - PluginLoader: load с существующим/отсутствующим классом
