@@ -64,10 +64,11 @@ class EditorApp(QMainWindow):
 
     def restore_settings(self):
         cs = self._config_service
-        ui_defaults = cs.get_ui_defaults()
-        default_pos = ui_defaults.get("geometry/pos", [200, 150])
-        default_size = ui_defaults.get("geometry/size", [1500, 900])
-        cs.restore_window_geometry(self, default_pos, default_size)
+        errors = []
+        cs._validate_ui_defaults(errors)
+        for e in errors:
+            self.msg_srv.post_message(e, "EditorApp", "warning")
+        cs.restore_window_geometry(self)
 
         font_size = cs.restore_font_size(12)
         self.setFont(QFont("SansSerif", font_size))

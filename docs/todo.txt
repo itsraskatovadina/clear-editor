@@ -1,24 +1,94 @@
+СЕРВИС КОНФИГУРАЦИИ
 
+ConfigService
 
----------------------------------
-По ConfigService
-0. Обновить спецификацию, для этого просмотреть из docs/spec/ver1.0/ru/state_spec.txt, проверить соответствие коду,
-на основе state_spec создать новую в docs/spec/plugins (предложи свой вариант названия) и дополнить следующими пунктами (нужно будет обсудить)
+меняем логику validate(), _validate_plugins_dir(), _validate_ui_defaults()
+validate() не нужна, вызываем validate_plugins_dir() и validate_ui_defaults() в разных местах
+validate_plugins_dir будет вызвана в EditorApp неявно, через _load_config
+validate_ui_defaults будет вызвана явно в restore_settings
 
-1. добавить валидацию config. 
-1.1 валидация plugins_dir проходит, если: ключ присутствует, путь валиден для linux и windows, директория существует
-    если валидация plugins_dir не проходит, тогда: 
-    вариант А - приложение сообщает об этом в msg_panel и загружается без поддержки плагинов;
-    вариант Б - приложение завершается с ConfigError.
-вариант А мне больше нравится, но если он потребует серьезных доработок, тогда лучше выбрать вариант Б
-1.2 валидация всех ключей в группе ui_defaults.
-    если валидация группы ui_defaults не проходит, сообщаем и заменяем дефолтом.
+с возвратом ошибки в _validate_plugins_dir я ошиблась, суть в том,
+ что _validate_plugins_dir может вернуть только одну ошибку, может так? предложи свой вариант
 
-2 создать тесты
-(в этих тестах главное не проверка соответствия спецификации, а чтобы приложение не падало, предложи свои варианты тестов)
-2.1 если config.json отсутствует или не парсится - завершение с ConfigError
-2.2 проверка валидации config
-2.3 если при запуске settings.ini нет - он создается и заполняется дефолтами, если пользователь не менял настройки
-2.4 открытые и последние файлы сохраняются и восстанавливаются (проверить случай, если один из этих файлов удален или просто не открывается,
- валидность путей для linux и windows)
+Сигнатура: `def _validate_plugins_dir(self) -> str | None`
+   - Возвращает `None` при успехе.
+   - Возвращает строку с ошибкой при неудаче.
+   Вызов в `_load_config`:
+   ```python
+   err = self._validate_plugins_dir()
+   if err is not None:
+       raise ConfigError(err)
+
+	  
+Ответы на **Вопросы для обсуждения:**
+  - plugins_dir всегда относительный (от cwd)? Или может быть абсолютным? Ответ - оставляем как есть
+
+_validate_ui_defaults вызываем в начале EditorApp restore_settings
+    def restore_settings(self):
+        cs = self._config_service
+        errors = []
+        cs.validate_ui_defaults()
+        for e in errors:
+            self.msg_srv.post_message(e, "EditorApp", "warning")
+        cs.restore_window_geometry(self)
+
+в EditorApp restore_settings меняем сигнатуру 
+из EditorApp restore_settings переносим часть кода 
+        ui_defaults = cs.get_ui_defaults()
+        default_pos = ui_defaults.get("geometry/pos", [200, 150])
+        default_size = ui_defaults.get("geometry/size", [1500, 900])
+в ConfigService restore_window_geometry, должно получиться так:
+
+    def restore_window_geometry(self, window):
+        ui_defaults = self.get_ui_defaults()
+        default_pos = ui_defaults.get("geometry/pos", [200, 150])
+        default_size = ui_defaults.get("geometry/size", [1500, 900])
+        
+        pos = self.settings.value("geometry/pos")
+        if pos:
+            window.move(pos)
+        else:
+            window.move(QPoint(*default_pos))
+
+        size = self.settings.value("geometry/size")
+        if size:
+            window.resize(size)
+        else:
+            window.resize(QSize(*default_size))
+
+_validate_ui_defaults меняем - 
+
+    def _validate_ui_defaults(self, errors: list):
+        ui = self.config.get("ui_defaults")
+        if ui is None:
+            errors.append("config.json: 'ui_defaults' absent")
+            # такое поведение позволит restore_window_geometry взять дефолтные значения
+            return
+        if not isinstance(ui, dict):
+            errors.append("config.json: 'ui_defaults' must be a dict")
+            self.config.set("ui_defaults", {}) # это позволит restore_window_geometry взять дефолтные значения 
+            return
+        # при любом повреждении ключа - ключ удаляем. это позволит restore_window_geometry взять дефолтные значения 
+        # нужно дописать код - удаление ключа
+        for key in ("geometry/pos", "geometry/size"):
+            val = ui.get(key)
+            if val is None:
+                errors.append(f"config.json: ui_defaults missing '{key}'")
+                continue
+            if not isinstance(val, list) or len(val) != 2:
+                errors.append(f"config.json: ui_defaults '{key}' must be a list of 2 ints")
+                del ui[key]
+                continue
+            if not all(isinstance(v, int) for v in val):
+                errors.append(f"config.json: ui_defaults '{key}' must contain integers")
+                del ui[key]
+                
+Порядок работ
+1. договариваемся
+2. меняем код
+3. обновляем спецификацию config_service_spec.txt
+4. меняем тесты
+ 
+
+ 
  

@@ -14,8 +14,9 @@
     └── self.settings : QSettings    ← привязан к settings.ini
 
   EditorApp (core/editor_app.py) — делегирует ConfigService:
-    ├── load_config()         → ConfigService.__init__(path)
-    ├── restore_settings()    → cs.restore_window_geometry(), restore_font_size(), restore_recent_files()
+    ├── load_config()         → ConfigService.__init__(path)  ← внутри _validate_plugins_dir → ConfigError
+    ├── restore_settings()    → cs._validate_ui_defaults(errors) → msg_srv.warning,
+    │                           cs.restore_window_geometry(), restore_font_size(), restore_recent_files()
     ├── set_tab_panel()       → cs.restore_open_files()
     └── closeEvent()          → cs.save_*() + cs.sync()
 
@@ -85,10 +86,10 @@
   .get_ui_defaults() → dict
     Возвращает config["ui_defaults"] или {}.
 
-  .restore_window_geometry(window, default_pos, default_size)
+  .restore_window_geometry(window)
     Читает geometry/pos и geometry/size из settings.ini.
-    Если нет — использует default_pos/default_size.
-    default_pos = [x, y], default_size = [w, h].
+    Если нет — берёт дефолты из config["ui_defaults"].
+    Если и там нет — жёсткие дефолты [200, 150] и [1500, 900].
 
   .save_window_geometry(window)
     Сохраняет pos() и size() окна в settings.ini.
@@ -107,35 +108,35 @@
   .sync()
     Вызывает settings.sync().
 
-5. ВАЛИДАЦИЯ (ПРЕДЛАГАЕМАЯ)
------------------------------
+5. ВАЛИДАЦИЯ
+--------------
 
 5.1. plugins_dir
 
-  Добавить метод ConfigService.validate().
+  Метод _validate_plugins_dir(self) -> Optional[str]
 
   Проверки:
     - Ключ "plugins_dir" присутствует в config
-    - Путь валиден (не содержит недопустимых символов для Linux и Windows)
+    - Значение — непустая строка
     - Директория существует (Path.exists() и Path.is_dir())
 
-  При ошибке — два варианта (выбрать при реализации):
-    Вариант А: вернуть список ошибок, main.py выводит в msg_panel
-               и запускается без поддержки плагинов
-    Вариант Б: raise ConfigError — приложение завершается
+  Возвращает None при успехе, строку с ошибкой при неудаче.
+  Вызывается в конце _load_config(). При ошибке — raise ConfigError.
 
 5.2. ui_defaults
 
+  Метод _validate_ui_defaults(self, errors: list)
+
   Проверки:
     - ui_defaults — словарь (dict)
-    - geometry/pos — список из 2 чисел
-    - geometry/size — список из 2 чисел
+    - geometry/pos — список из 2 int
+    - geometry/size — список из 2 int
 
-  При ошибке:
-    - Вывести сообщение в msg_panel
-    - Использовать жёсткие дефолты:
-        geometry/pos: [200, 150]
-        geometry/size: [1500, 900]
+  Поведение:
+    - Если ui_defaults отсутствует → errors.append, возврат
+    - Если ui_defaults не dict → errors.append, сброс в {}
+    - Если ключ geometry/pos или geometry/size повреждён → errors.append, del ui[key]
+  Вызывается в EditorApp.restore_settings(). Ошибки — в msg_panel как warning.
 
 6. ТЕСТЫ (ПРЕДЛАГАЕМЫЕ)
 --------------------------
@@ -154,16 +155,16 @@
 
 6.3. Валидация plugins_dir
 
-  - config.json с валидным plugins_dir → validate() не возвращает ошибок
-  - config.json без ключа plugins_dir → возвращает ошибку
-  - config.json с plugins_dir указывающим на несуществующую директорию → ошибка
+  - config.json с валидным plugins_dir → _load_config проходит без ошибок
+  - config.json без ключа plugins_dir → ConfigError
+  - config.json с plugins_dir указывающим на несуществующую директорию → ConfigError
 
 6.4. Валидация ui_defaults
 
-  - config.json с валидными ui_defaults → validate() не возвращает ошибок
-  - config.json с ui_defaults где geometry/pos не массив → ошибка, дефолт
-  - config.json с ui_defaults где geometry/pos массив из 1 числа → ошибка, дефолт
-  - config.json без ui_defaults → validate() не возвращает ошибок (опционально)
+  - config.json с валидными ui_defaults → _validate_ui_defaults не добавляет ошибок
+  - config.json с ui_defaults где geometry/pos не массив → ошибка, ключ удалён
+  - config.json с ui_defaults где geometry/pos массив из 1 числа → ошибка, ключ удалён
+  - config.json без ui_defaults → _validate_ui_defaults добавляет ошибку
 
 6.5. settings.ini создаётся с дефолтами
 

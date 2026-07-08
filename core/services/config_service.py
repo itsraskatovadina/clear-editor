@@ -20,9 +20,14 @@ class ConfigService:
             raise ConfigError(f"Отсутствует файл конфигурации {path}")
         try:
             with open(config_path, encoding="utf-8") as f:
-                return json.load(f)
+                cfg = json.load(f)
         except json.JSONDecodeError as e:
             raise ConfigError(f"Ошибка парсинга {path}: {e}")
+        self.config = cfg
+        err = self._validate_plugins_dir()
+        if err is not None:
+            raise ConfigError(err)
+        return cfg
 
     def get(self, key: str, default=None):
         return self.config.get(key, default)
@@ -30,7 +35,11 @@ class ConfigService:
     def get_ui_defaults(self) -> dict:
         return self.config.get("ui_defaults", {})
 
-    def restore_window_geometry(self, window, default_pos, default_size):
+    def restore_window_geometry(self, window):
+        ui_defaults = self.get_ui_defaults()
+        default_pos = ui_defaults.get("geometry/pos", [200, 150])
+        default_size = ui_defaults.get("geometry/size", [1500, 900])
+
         pos = self.settings.value("geometry/pos")
         if pos:
             window.move(pos)
@@ -89,32 +98,27 @@ class ConfigService:
             self.settings.setValue("f", f)
         self.settings.endArray()
 
-    def validate(self) -> list:
-        errors = []
-        self._validate_plugins_dir(errors)
-        self._validate_ui_defaults(errors)
-        return errors
-
-    def _validate_plugins_dir(self, errors: list):
+    def _validate_plugins_dir(self) -> Optional[str]:
         pd = self.config.get("plugins_dir")
         if pd is None:
-            errors.append("config.json: missing key 'plugins_dir'")
-            return
+            return "config.json: missing key 'plugins_dir'"
         if not isinstance(pd, str) or not pd.strip():
-            errors.append("config.json: 'plugins_dir' must be a non-empty string")
-            return
+            return "config.json: 'plugins_dir' must be a non-empty string"
         p = Path(pd)
         if not p.exists():
-            errors.append(f"config.json: plugins_dir '{pd}' does not exist")
-        elif not p.is_dir():
-            errors.append(f"config.json: plugins_dir '{pd}' is not a directory")
+            return f"config.json: plugins_dir '{pd}' does not exist"
+        if not p.is_dir():
+            return f"config.json: plugins_dir '{pd}' is not a directory"
+        return None
 
     def _validate_ui_defaults(self, errors: list):
         ui = self.config.get("ui_defaults")
         if ui is None:
+            errors.append("config.json: 'ui_defaults' absent")
             return
         if not isinstance(ui, dict):
             errors.append("config.json: 'ui_defaults' must be a dict")
+            self.config["ui_defaults"] = {}
             return
         for key in ("geometry/pos", "geometry/size"):
             val = ui.get(key)
@@ -123,9 +127,11 @@ class ConfigService:
                 continue
             if not isinstance(val, list) or len(val) != 2:
                 errors.append(f"config.json: ui_defaults '{key}' must be a list of 2 ints")
+                del ui[key]
                 continue
             if not all(isinstance(v, int) for v in val):
                 errors.append(f"config.json: ui_defaults '{key}' must contain integers")
+                del ui[key]
 
     def sync(self):
         self.settings.sync()
