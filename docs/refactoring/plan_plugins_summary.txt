@@ -1,0 +1,21 @@
+Сводка plan_plugins.txt
+==========================
+
+Дата: 2026-07-06
+Статус: ⏸️ ПРИОСТАНОВЛЕН (приоритет: завершение рефакторинга основного приложения)
+
+Что выполнено:
+- PluginManager разделён на registry/loader/UI ✅
+- EditorApp сервисы вынесены ✅
+- iclear → FileTabSrv API (editor_state_changed) ✅
+- iclear спецификация создана ✅
+- HTMLProcessing спецификация создана ✅
+
+Что на очереди (после v3.0):
+1. iclear → межплагинная связь (validate_html из htmlprocessing)
+2. HTMLProcessing → HTMLTools, перенос в Tools
+3. TextProcessing — Wrap произвольным тегом
+4. TextProcessing — Вставка шаблонов из templates.json
+5. Настройка видимости тулбаров и панелей
+
+Проблема дублирования меню: решена через find_menu_by_text (поиск существующего меню по тексту).

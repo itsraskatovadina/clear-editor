@@ -1,0 +1,20 @@
+Сводка plan_msg_srv.txt
+==========================
+
+Дата: ~2026-07-02
+Тема: MessageSrv — выделение из MsgPanel монолита
+
+Порядок изменений:
+1. MessageModel (dataclass: text, sender, msg_type, timestamp) — чистая модель
+2. MessageSrv (QObject) — post_message/post_error, HTML-форматирование, beep
+3. MsgPanelView (QTabWidget) — три QTextEdit, только append/показ
+4. EditorApp — переключение на MessageSrv: сигналы file_tab_srv → msg_srv → msg_panel
+5. main.py — исправлен импорт ErrorHandler (из message_srv, не из msg_panel)
+6. Тесты — MessageModel (unit), MessageSrv (integration)
+
+Три потока:
+- Err — неперехваченные (stderr, excepthook) → post_error
+- Msg — штатные (handled) → post_message
+- View — сгенерированный текст → show_view
+
+Правило: try/except + обработка = handled → Msg. Непойманное = unhandled → Err.

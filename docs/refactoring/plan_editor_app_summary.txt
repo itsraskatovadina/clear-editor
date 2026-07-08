@@ -1,0 +1,22 @@
+Сводка plan_editor_app.txt
+============================
+
+Дата: ~2026-07-02
+Тема: вынос Config/Session/Zoom сервисов из EditorApp
+
+Что сделано:
+- ConfigService — загрузка config.json + QSettings (geometry, font, recent, open files)
+- ZoomService → переименован в ThemeService с расширенным API
+- EditorApp.load_config() — делегирует ConfigService
+- EditorApp.closeEvent() — делегирует ConfigService.save_* + sync()
+- EditorApp.restore_settings() — вызов _validate_ui_defaults + restore_*
+- EditorApp.set_tab_panel() — делегирует restore_open_files()
+- EditorApp.zoom_in/out — делегирует ThemeService
+
+Файлы:
+- core/services/config_service.py — создан
+- core/services/theme_service.py — создан
+- core/editor_app.py — изменён (делегирование)
+
+session_service — НЕ создан (функции внутри ConfigService). Это сознательное решение:
+ConfigService управляет QSettings, что достаточно для текущих потребностей.

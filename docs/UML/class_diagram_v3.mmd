@@ -1,0 +1,304 @@
+---
+title: ClearEditor v3.0 — Class Diagram (MVS Architecture + DI)
+---
+
+classDiagram
+    direction TB
+
+    %% ======================== MODELS (pure Python) ========================
+    class Document {
+        +file_path: Optional[Path]
+        +encoding: str
+        +last_file_mtime: datetime
+        -_qdoc: QTextDocument
+        +title: str (property)
+        +full_title: str (property)
+        +modified: bool (property)
+        +content: str (property)
+        +bind(qdoc)
+        +load() str
+        +save()
+        +save_as(path)
+        +is_externally_modified() bool
+    }
+
+    class FileTabModel {
+        -_documents: List[Document]
+        -_current_index: int
+        +count: int (property)
+        +current_index: int (property)
+        +current() Document | None
+        +at(index) Document | None
+        +add(path) Document
+        +remove(index) bool
+        +set_current(index)
+    }
+
+    class MessageModel {
+        <<dataclass>>
+        +text: str
+        +sender: str
+        +msg_type: str
+        +timestamp: datetime
+    }
+
+    class TagCompletionsModel {
+        +tags: Dict[str, list]
+        +completions: list
+        +completion_prefix(prefix) list
+    }
+
+    class PluginRegistry {
+        <<pure Python>>
+        -_available: Dict[str, dict]
+        -_active: Dict[str, PluginBase]
+        -_active_ui: Dict[str, dict]
+        +register(manifest)
+        +unregister(name)
+        +get_available() list
+        +get_active(name) PluginBase
+        +get_all_active() dict
+        +is_active(name) bool
+        +list_active() list
+    }
+
+    %% ======================== VIEWS (Qt widgets) ========================
+    class FileTabView {
+        <<QTabWidget>>
+        +close_requested: pyqtSignal(int)
+        +current_changed: pyqtSignal(int)
+        +tab_moved: pyqtSignal(int, int)
+        +add_editor_tab(widget, title, tooltip) int
+        +set_tab(index, text, tooltip)
+        +remove_editor_tab(index)
+        +editor_at(index) QWidget
+    }
+
+    class EditorWidget {
+        <<QWidget>>
+        +modification_changed: pyqtSignal()
+        +cursor_position_changed: pyqtSignal(int)
+        +editor: HTMLEditor
+        +set_text(text)
+        +set_focus()
+        +document() QTextDocument
+    }
+
+    class HTMLEditor {
+        <<QTextEdit>>
+        +highlighter: HtmlHighlighter
+        +completions_model: TagCompletionsModel
+        +keyPressEvent(event)
+    }
+
+    class HtmlHighlighter {
+        <<QSyntaxHighlighter>>
+        +highlightBlock(text)
+    }
+
+    class MsgPanelView {
+        <<QTabWidget>>
+        +err_box: QTextEdit
+        +msg_box: QTextEdit
+        +view_box: QTextEdit
+        +append_err(html)
+        +append_msg(html)
+        +show_view(text, text_type)
+    }
+
+    class PluginUI {
+        <<QObject>>
+        +build_menu(editor, plugin, registry)
+        +build_toolbar(editor, plugin)
+        +build_dock(editor, plugin)
+        +build_status_fields(editor, plugin)
+        +remove_ui(name, registry)
+        +find_menu_by_text(parent, text) QMenu
+    }
+
+    class PluginWidget {
+        <<QDialog>>
+        +list_plugins: QListView
+        +registry: PluginRegistry
+        +get_selected_names() set
+    }
+
+    %% ======================== SERVICES (business logic) ========================
+    class FileTabSrv {
+        <<QObject>>
+        +editor_state_changed: pyqtSignal(str, str, str, str)
+        +message: pyqtSignal(str, str, str)
+        +line_changed: pyqtSignal(int)
+        -_view: FileTabView
+        -_model: FileTabModel
+        -_editor_class: type
+        -_widgets: List[EditorWidget]
+        +new_tab()
+        +add_tab(path)
+        +close_tab(index, close_last_tab) bool
+        +close_all_tab()
+        +open_file()
+        +current_tab_save()
+        +current_tab_save_as()
+        +current_tab_close()
+        +current_tab_reload()
+        +current_document() Document
+        +get_open_files() list
+        +current_editor() HTMLEditor
+        +set_files(file_list)
+        +tab_count() int
+        +on_app_focus_changed(old, now)
+    }
+
+    class MessageSrv {
+        <<QObject>>
+        +display_error: pyqtSignal(str)
+        +display_message: pyqtSignal(str)
+        +message_received: pyqtSignal()
+        +post_message(text, sender, msg_type)
+        +post_error(text, sender)
+    }
+
+    class ConfigService {
+        +config: dict
+        +settings: QSettings
+        +__init__(path)
+        +get(key, default)
+        +get_ui_defaults() dict
+        +restore_window_geometry(window)
+        +save_window_geometry(window)
+        +restore_font_size(default) int
+        +save_font_size(size)
+        +restore_recent_files() list
+        +save_recent_files(files)
+        +restore_open_files() list
+        +save_open_files(files)
+        +sync()
+        -_validate_plugins_dir() str | None
+        -_validate_ui_defaults(errors)
+    }
+
+    class ThemeService {
+        <<QObject>>
+        +target: QWidget
+        +zoom_in()
+        +zoom_out()
+        +set_font_size(pts)
+    }
+
+    class PluginLoader {
+        <<QObject>>
+        +plugin_loaded: pyqtSignal(str)
+        +plugin_error: pyqtSignal(str, str)
+        +discover(plugins_dir, registry)
+        +load(name, registry) PluginBase
+        +deactivate(name, registry)
+    }
+
+    class ErrorHandler {
+        +original_stderr: TextIO
+        +write(message)
+        +flush()
+    }
+
+    %% ======================== FACADE ========================
+    class PluginManager {
+        <<QObject, Facade>>
+        +discover()
+        +activate(name, editor) PluginBase
+        +deactivate(name)
+        +get_available() list
+        +get_active(name) PluginBase
+        +get_all_active() dict
+        -_registry: PluginRegistry
+        -_loader: PluginLoader
+        -_ui: PluginUI
+    }
+
+    class PluginBase {
+        <<QObject>>
+        +name: str
+        +description: str
+        +menu_items: list
+        +toolbar_items: list
+        +status_fields: dict
+        +on_load(editor)
+        +on_unload()
+        +create_dock_widget(parent) QWidget
+    }
+
+    %% ======================== APPLICATION (orchestrator) ========================
+    class EditorApp {
+        <<QMainWindow>>
+        +recent_files_changed: pyqtSignal()
+        +win_title: str
+        +config: dict
+        +settings: QSettings
+        +recent_files: list
+        +file_tab_view: FileTabView
+        +file_tab_srv: FileTabSrv
+        +msg_panel: MsgPanelView
+        +msg_srv: MessageSrv
+        +theme: ThemeService
+        +plugin_manager: PluginManager
+        +line_label: QLabel
+        +plugins_action: QAction
+        +load_config()
+        +restore_settings()
+        +closeEvent(event)
+        +set_tab_panel()
+        +create_menu_bar(menu_bar)
+        +create_status_bar()
+        +zoom_in()
+        +zoom_out()
+        +add_recent_file(path)
+        +current_editor() HTMLEditor
+        +current_file_name() str
+        +on_error(msg)
+        +on_editor_state_changed(name, fname, mod_label, operation)
+        +on_app_focus_changed(old, now)
+        -_ensure_msg_panel_visible()
+        -_update_recent_files_menu()
+    }
+
+    %% ======================== INHERITANCE ========================
+    QMainWindow <|-- EditorApp
+    QTabWidget <|-- FileTabView
+    QTabWidget <|-- MsgPanelView
+    QWidget <|-- EditorWidget
+    QTextEdit <|-- HTMLEditor
+    QSyntaxHighlighter <|-- HtmlHighlighter
+    QObject <|-- FileTabSrv
+    QObject <|-- MessageSrv
+    QObject <|-- ThemeService
+    QObject <|-- PluginLoader
+    QObject <|-- PluginUI
+    QObject <|-- PluginManager
+    QObject <|-- PluginBase
+    QDialog <|-- PluginWidget
+
+    %% ======================== COMPOSITION ========================
+    EditorApp *-- FileTabView : owns
+    EditorApp *-- FileTabSrv : owns
+    EditorApp *-- MsgPanelView : owns
+    EditorApp *-- MessageSrv : owns
+    EditorApp *-- ThemeService : owns
+    FileTabSrv *-- FileTabModel : owns
+    FileTabSrv *-- EditorWidget : owns per tab
+    FileTabModel *-- Document : contains list
+    EditorWidget *-- HTMLEditor : contains
+    HTMLEditor *-- HtmlHighlighter : contains
+    HTMLEditor *-- TagCompletionsModel : uses
+    PluginManager *-- PluginRegistry : delegates
+    PluginManager *-- PluginLoader : delegates
+    PluginManager *-- PluginUI : delegates
+
+    %% ======================== SIGNAL CONNECTIONS ========================
+    FileTabView ..> FileTabSrv : close_requested, current_changed, tab_moved >
+    EditorWidget ..> FileTabSrv : modification_changed, cursor_position_changed >
+    FileTabSrv ..> EditorApp : editor_state_changed, line_changed >
+    FileTabSrv ..> MessageSrv : message >
+    MessageSrv ..> MsgPanelView : display_error, display_message >
+    MessageSrv ..> EditorApp : message_received > _ensure_msg_panel_visible
+    ErrorHandler ..> EditorApp : stderr redirect >
+    PluginManager ..> EditorApp : activate/deactivate UI >

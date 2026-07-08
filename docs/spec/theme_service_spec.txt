@@ -1,0 +1,56 @@
+СЕРВИС ТЕМЫ — ThemeService
+=============================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Управление шрифтом и фоном приложения. Заменяет ZoomService (v1.0), расширяя API.
+
+2. АРХИТЕКТУРА
+----------------
+
+  ThemeService (core/services/theme_service.py)
+    ├── _target: QWidget          ← виджет, на который применяются изменения
+    └── _default_font: QFont      ← шрифт до изменений (для reset)
+
+  EditorApp:
+    ├── self.theme = ThemeService(target=self)
+    ├── zoom_in()    → theme.zoom_in()
+    ├── zoom_out()   → theme.zoom_out()
+    └── (в будущем)  → theme.set_background()
+
+3. ПУБЛИЧНЫЙ API
+------------------
+
+  ThemeService(target=None, parent=None)
+    target — любой QWidget (обычно EditorApp/QMainWindow)
+    _default_font запоминается при инициализации
+
+  .zoom_in()
+    Увеличивает шрифт target на +1 pt.
+
+  .zoom_out()
+    Уменьшает шрифт target на -1 pt (минимум 6 pt).
+
+  .set_font(font: QFont)
+    Устанавливает произвольный шрифт.
+
+  .set_font_size(pts: int)
+    Устанавливает размер шрифта в pt.
+
+  .set_background(color: QColor)
+    Устанавливает фон через stylesheet.
+
+  .reset()
+    Восстанавливает шрифт и stylesheet по умолчанию.
+
+4. ИСТОРИЯ
+-----------
+  v1.0: zoom_in/zoom_out были методами EditorApp.
+  v2.0: вынесены в ZoomService.
+  v3.0: ZoomService → ThemeService (добавлены set_font, set_font_size, set_background, reset).
+
+5. ТЕСТЫ (предлагаемые)
+------------------------
+  - zoom_in увеличивает шрифт на 1
+  - zoom_out не уменьшает ниже 6 pt
+  - reset восстанавливает _default_font

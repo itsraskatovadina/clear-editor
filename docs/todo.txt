@@ -1,94 +1,16 @@
-СЕРВИС КОНФИГУРАЦИИ
+ЗАВЕРШЕНИЕ РЕФАКТОРИНГА
+Завершение рефакторинга основного приложения (кроме плагинов)
+то чем мы занимались начиная с git tag v1.0 до сих пор можно назвать рефакторингом с попутными изменениями
 
-ConfigService
-
-меняем логику validate(), _validate_plugins_dir(), _validate_ui_defaults()
-validate() не нужна, вызываем validate_plugins_dir() и validate_ui_defaults() в разных местах
-validate_plugins_dir будет вызвана в EditorApp неявно, через _load_config
-validate_ui_defaults будет вызвана явно в restore_settings
-
-с возвратом ошибки в _validate_plugins_dir я ошиблась, суть в том,
- что _validate_plugins_dir может вернуть только одну ошибку, может так? предложи свой вариант
-
-Сигнатура: `def _validate_plugins_dir(self) -> str | None`
-   - Возвращает `None` при успехе.
-   - Возвращает строку с ошибкой при неудаче.
-   Вызов в `_load_config`:
-   ```python
-   err = self._validate_plugins_dir()
-   if err is not None:
-       raise ConfigError(err)
-
-	  
-Ответы на **Вопросы для обсуждения:**
-  - plugins_dir всегда относительный (от cwd)? Или может быть абсолютным? Ответ - оставляем как есть
-
-_validate_ui_defaults вызываем в начале EditorApp restore_settings
-    def restore_settings(self):
-        cs = self._config_service
-        errors = []
-        cs.validate_ui_defaults()
-        for e in errors:
-            self.msg_srv.post_message(e, "EditorApp", "warning")
-        cs.restore_window_geometry(self)
-
-в EditorApp restore_settings меняем сигнатуру 
-из EditorApp restore_settings переносим часть кода 
-        ui_defaults = cs.get_ui_defaults()
-        default_pos = ui_defaults.get("geometry/pos", [200, 150])
-        default_size = ui_defaults.get("geometry/size", [1500, 900])
-в ConfigService restore_window_geometry, должно получиться так:
-
-    def restore_window_geometry(self, window):
-        ui_defaults = self.get_ui_defaults()
-        default_pos = ui_defaults.get("geometry/pos", [200, 150])
-        default_size = ui_defaults.get("geometry/size", [1500, 900])
-        
-        pos = self.settings.value("geometry/pos")
-        if pos:
-            window.move(pos)
-        else:
-            window.move(QPoint(*default_pos))
-
-        size = self.settings.value("geometry/size")
-        if size:
-            window.resize(size)
-        else:
-            window.resize(QSize(*default_size))
-
-_validate_ui_defaults меняем - 
-
-    def _validate_ui_defaults(self, errors: list):
-        ui = self.config.get("ui_defaults")
-        if ui is None:
-            errors.append("config.json: 'ui_defaults' absent")
-            # такое поведение позволит restore_window_geometry взять дефолтные значения
-            return
-        if not isinstance(ui, dict):
-            errors.append("config.json: 'ui_defaults' must be a dict")
-            self.config.set("ui_defaults", {}) # это позволит restore_window_geometry взять дефолтные значения 
-            return
-        # при любом повреждении ключа - ключ удаляем. это позволит restore_window_geometry взять дефолтные значения 
-        # нужно дописать код - удаление ключа
-        for key in ("geometry/pos", "geometry/size"):
-            val = ui.get(key)
-            if val is None:
-                errors.append(f"config.json: ui_defaults missing '{key}'")
-                continue
-            if not isinstance(val, list) or len(val) != 2:
-                errors.append(f"config.json: ui_defaults '{key}' must be a list of 2 ints")
-                del ui[key]
-                continue
-            if not all(isinstance(v, int) for v in val):
-                errors.append(f"config.json: ui_defaults '{key}' must contain integers")
-                del ui[key]
-                
-Порядок работ
-1. договариваемся
-2. меняем код
-3. обновляем спецификацию config_service_spec.txt
-4. меняем тесты
+внимательно смотрим весь код (кроме плагинов) нет ли там явных дефектов кода и архитектуры
  
-
- 
- 
+1. ставим git tag v3.0
+2. создаем в docs/ папку refactoring
+3. UML/class_diagram.mmd переменовываем в class_diagram_v2.mmd, создаем UML/class_diagram_v3.mmd
+4. CHANGELOG.md дополняем и перемещаем в папку refactoring
+5. Делаем краткий конспект master_plan.txt, plan_editor_app.txt, plan_plug_manager.txt,
+ plan_msg_srv.txt, master_plan.txt, plan_plugins.txt.
+  План рефакторинга TabPanel+FileEditor → FileTabView+FileTabSrv+FileTabModel+EditorWidget потерян.
+  Отражаем процесс перехода по шагам.
+6. создаем недостающие спецификации
+7. readme.md проверяем на соответствие проекту

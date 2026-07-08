@@ -1,0 +1,25 @@
+Сводка master_plan.txt
+========================
+
+Дата: 2026-07-02
+Цель: переход от плоской core/ к субпакетам models/views/services/
+
+Ключевые рекомендации (8 штук):
+
+1. Субпакеты core/models/, core/views/, core/services/
+2. plugins_service/ — аналогичное разделение
+3. EditorApp — вынести Config/Session/Zoom сервисы
+4. Конвенции именования (*Model, *View, *Srv, *Service, Document)
+5. Test-сборка для новых моделей (assert-based)
+6. Порядок рефакторинга: MsgPanel → HTMLEditor → PluginManager → EditorApp → iclear
+7. Dependency injection вместо прямого создания
+8. Маршрутизация ошибок по вкладкам MsgPanel (Err/Msg/View)
+
+Результат: все 8 рекомендаций выполнены к v3.0.
+- Рек.1-2: ✅ субпакеты core/ и plugins_service/
+- Рек.3: ✅ ConfigService + ThemeService
+- Рек.4: ✅ конвенции соблюдаются
+- Рек.5: ✅ 7 файлов тестов
+- Рек.6: ✅ все этапы пройдены
+- Рек.7: ✅ DI в main.py (ConfigService, PluginManager собирается снаружи)
+- Рек.8: ✅ Err/Msg/View через MessageSrv

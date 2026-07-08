@@ -42,21 +42,22 @@ class FileTabSrv(QObject):
 
     def add_tab(self, path=None):
         if path:
-            for i, doc in enumerate(self._model._documents):
-                if doc.file_path == path:
-                    self._programmatic_change = True
-                    self._view.setCurrentIndex(i)
-                    self._programmatic_change = False
-                    self._model.set_current(i)
-                    fname = str(path)
-                    self.message.emit(
-                        f"file {fname} already open", "FileTabSrv", "info"
-                    )
-                    mod_label = "*" if doc.modified else ""
-                    self.editor_state_changed.emit(
-                        path.name, fname, mod_label, "Reopened"
-                    )
-                    return True
+            i = self._model.index_of(path)
+            if i >= 0:
+                doc = self._model.at(i)
+                self._programmatic_change = True
+                self._view.setCurrentIndex(i)
+                self._programmatic_change = False
+                self._model.set_current(i)
+                fname = str(path)
+                self.message.emit(
+                    f"file {fname} already open", "FileTabSrv", "info"
+                )
+                mod_label = "*" if doc.modified else ""
+                self.editor_state_changed.emit(
+                    path.name, fname, mod_label, "Reopened"
+                )
+                return True
             if not self._check_path_exists(path):
                 return False
 
@@ -249,11 +250,9 @@ class FileTabSrv(QObject):
     # --- session ---
 
     def get_open_files(self):
-        result = []
-        for doc in self._model._documents:
-            if doc.file_path:
-                result.append(str(doc.file_path))
-        return result
+        return [
+            str(d.file_path) for d in self._model.all_docs() if d.file_path
+        ]
 
     def set_files(self, file_list):
         opened = 0
@@ -272,7 +271,7 @@ class FileTabSrv(QObject):
     def _on_tab_moved(self, from_idx, to_idx):
         if from_idx == to_idx:
             return
-        self._model._documents.insert(to_idx, self._model._documents.pop(from_idx))
+        self._model.move_doc(from_idx, to_idx)
         self._widgets.insert(to_idx, self._widgets.pop(from_idx))
         self._model.set_current(self._view.currentIndex())
 
@@ -291,7 +290,9 @@ class FileTabSrv(QObject):
                 )
 
     def _on_modification_changed(self, doc):
-        index = self._model._documents.index(doc)
+        index = self._model.index_of_doc(doc)
+        if index < 0:
+            return
         mod_label = "*" if doc.modified else ""
         self._view.set_tab(index, doc.title + mod_label, doc.full_title)
         self.editor_state_changed.emit(

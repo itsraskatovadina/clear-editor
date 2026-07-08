@@ -26,11 +26,9 @@ class MessageSrv(QObject):
     def post_message(self, text, sender="", msg_type="info"):
         msg = Message(text=text, sender=sender, msg_type=msg_type)
         html = self._format(msg)
+        self.display_message.emit(html)
         if msg_type in ("error", "warning"):
-            self.display_message.emit(html)
             QApplication.beep()
-        else:
-            self.display_message.emit(html)
         self.message_received.emit()
 
     def _format(self, msg):

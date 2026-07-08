@@ -1,7 +1,7 @@
 # Session Status
 
-**Дата:** 2026-07-07
-**Этап:** ConfigService — спецификация, валидация, тесты.
+**Дата:** 2026-07-08
+**Этап:** Финализация v3.0 — завершение рефакторинга основного приложения.
 
 ## Общий прогресс
 
@@ -13,41 +13,37 @@
 | EditorApp рефакторинг (ConfigSrv, ThemeSrv, status_bar) | ✅ закоммичено |
 | main.py реструктуризация | ✅ закоммичено |
 | iclear → FileTabSrv API + спецификация | ✅ закоммичено |
-| ConfigService — спецификация, валидация, тесты | ✅ закоммичено |
+| ConfigService — валидация, спецификация, тесты | ✅ закоммичено |
 
 ## Что сделано в последнюю сессию
 
-1. **`docs/spec/config_service_spec.txt`** — новая спецификация ConfigService:
-   - Архитектура: ConfigService + EditorApp делегирование
-   - Форматы config.json и settings.ini
-   - Полный публичный API
-   - Правила валидации plugins_dir и ui_defaults (2 варианта: А — msg_panel, Б — ConfigError)
-   - План тестов (7 сценариев)
+### ConfigService — валидация ✅
+- `core/services/config_service.py` — методы `_validate_plugins_dir()`, `_validate_ui_defaults()`
+- `docs/spec/config_service_spec.txt` — спецификация ConfigService
+- `tests/services/test_config_service.py` — 11 тестов
+- Рефакторинг `EditorApp.restore_settings()` — вызов `_validate_ui_defaults()` с отправкой ошибок в msg_panel
+- Удалён мёртвый метод `validate()`
 
-2. **`core/services/config_service.py`** — добавлены методы валидации:
-   - `validate() → list[str]` — возвращает список ошибок
-   - `_validate_plugins_dir()` — проверяет наличие, тип, существование директории
-   - `_validate_ui_defaults()` — проверяет структуру geometry/pos и geometry/size
-   - **Не вызывается** нигде — мёртвый код, требует интеграции
+## Текущая задача: финализация v3.0
 
-3. **`tests/services/test_config_service.py`** — 11 тестов:
-   - missing/broken config → ConfigError ✓
-   - valid config → no errors ✓
-   - plugins_dir: missing, not exists, is file ✓
-   - ui_defaults: bad type, bad geometry/pos (not list, wrong len, non-int) ✓
-   - missing ui_defaults → no errors ✓
+Завершение рефакторинга основного приложения (кроме плагинов).
+Всё, что делалось начиная с git tag v1.0 до сих пор — рефакторинг с попутными изменениями.
 
-4. **`scripts/status.sh`** — добавлена подсказка про opencode.
+### План работ
+
+1. Создать `docs/refactoring/` — собрать CHANGELOG и конспекты планов
+2. UML: `class_diagram.mmd` → `class_diagram_v2.mmd`, создать `class_diagram_v3.mmd`
+3. CHANGELOG.md — дополнить для v3.0, переместить в refactoring/
+4. Конспекты планов: master_plan, plan_editor_app, plan_plug_manager, plan_msg_srv, plan_plugins
+5. Недостающие спецификации
+6. README.md — проверка и обновление
+7. git tag v3.0
 
 ## Текущее состояние (working tree)
 
-Чисто — всё закоммичено.
-
-## Что осталось за рамками (не делали)
-
-- Интеграция вызова validate() в EditorApp/main.py
-- Отображение ошибок валидации в msg_panel
-- Обновление `docs/spec/state_spec.txt` (устарел)
+- `docs/todo.txt` — изменён (новая задача)
+- `ANCHORED_SUMMARY.md` — неотслеживаемый
+- `docs/todo2.txt` — неотслеживаемый
 
 ## Документы
 
@@ -56,6 +52,10 @@
 | `docs/master_plan.txt` | Общий план рефакторинга |
 | `docs/plan_editor_app.txt` | План рефакторинга EditorApp |
 | `docs/plan_plugins.txt` | Сводный план по плагинам |
+| `docs/plan_plug_manager.txt` | План декомпозиции PluginManager |
+| `docs/plan_msg_srv.txt` | План извлечения MessageSrv |
 | `docs/spec/config_service_spec.txt` | Спецификация ConfigService |
+| `docs/spec/msg_service_spec.txt` | Спецификация MessageSrv |
 | `docs/spec/plugins/iclear_spec.txt` | Спецификация плагина iclear |
-| `docs/todo.txt` | Хотелки и текущие задачи |
+| `docs/spec/plugins/htmlprocessing_spec.txt` | Спецификация HTMLProcessing |
+| `docs/todo.txt` | Текущие задачи |

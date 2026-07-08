@@ -1,0 +1,93 @@
+СПЕЦИФИКАЦИЯ EDITORAPP (v3.0)
+=================================
+
+1. НАЗНАЧЕНИЕ
+---------------
+QMainWindow-оркестратор. Владеет всеми компонентами приложения и связывает их.
+Не содержит бизнес-логики — делегирует сервисам.
+
+2. АРХИТЕКТУРА
+----------------
+
+  EditorApp (core/editor_app.py)
+    │
+    ├── FileTabView           (view, self.file_tab_view)
+    ├── FileTabSrv            (service, self.file_tab_srv) → FileTabModel + EditorWidget[]
+    ├── MsgPanelView          (view, self.msg_panel)
+    ├── MessageSrv            (service, self.msg_srv)
+    ├── ConfigService         (service, self._config_service)
+    ├── ThemeService          (service, self.theme)
+    ├── PluginManager         (facade, self.plugin_manager)
+    ├── QSplitter             (self.splitter)
+    └── QStatusBar            (self.statusBar + self.line_label)
+
+3. ЖИЗНЕННЫЙ ЦИКЛ (main.py)
+------------------------------
+
+  1. EditorApp() — создание всех дочерних компонентов
+  2. load_config() → ConfigService.__init__ → _validate_plugins_dir
+  3. ErrorHandler / excepthook — перехват stderr
+  4. restore_settings() → _validate_ui_defaults → restore_window_geometry → font_size → recent_files
+  5. ThemeService — инициализация
+  6. set_tab_panel() → restore_open_files / new_tab
+  7. PluginManager — discover + activate
+  8. create_menu_bar()
+  9. show()
+
+4. СИГНАЛЬНЫЕ СОЕДИНЕНИЯ
+---------------------------
+
+  file_tab_srv.message          → msg_srv.post_message
+  file_tab_srv.editor_state_changed → on_editor_state_changed (заголовок окна + recent_files)
+  file_tab_srv.line_changed     → line_label.setText("Line: {line}")
+
+  msg_srv.display_error         → msg_panel.append_err
+  msg_srv.display_message       → msg_panel.append_msg
+  msg_srv.message_received      → _ensure_msg_panel_visible
+
+  app.focusChanged              → on_app_focus_changed → file_tab_srv.on_app_focus_changed
+
+5. ПУБЛИЧНЫЙ API
+------------------
+
+  load_config()
+    Создаёт или использует переданный ConfigService.
+    Устанавливает self.config, self.settings.
+
+  restore_settings()
+    Валидирует ui_defaults (ошибки → msg_panel warning).
+    Восстанавливает geometry, font_size, recent_files.
+
+  closeEvent(event)
+    Сохраняет geometry, font_size, recent_files, open_files через ConfigService.
+    Закрывает все вкладки через file_tab_srv.closeEvent.
+
+  set_tab_panel()
+    Восстанавливает open_files или создаёт пустую вкладку.
+
+  create_menu_bar(menu_bar)
+    Строит меню File (New/Open/Save/SaveAs/Close/Reload/Property/Recent files).
+    Строит меню Settings (ZoomIn/ZoomOut/Plugins).
+
+  create_status_bar()
+    Создаёт QStatusBar с QLabel для номера строки.
+
+  zoom_in() / zoom_out()
+    Делегирует ThemeService.
+
+  add_recent_file(path) / action_open_recent_file() / _update_recent_files_menu()
+    Управление списком recent_files (макс 10).
+
+  on_error(msg)
+    Делегирует msg_srv.post_error.
+
+  on_editor_state_changed(name, fname, mod_label, operation)
+    Обновляет заголовок окна, статус-бар, recent_files.
+
+6. СОСТОЯНИЕ
+--------------
+
+  self.config : dict           ← из ConfigService (config.json)
+  self.settings : QSettings    ← из ConfigService (settings.ini)
+  self.recent_files : list     ← список последних файлов
+  self.plugin_manager          ← устанавливается main.py

@@ -1,0 +1,18 @@
+Сводка plan_plug_manager.txt
+==============================
+
+Дата: ~2026-07-03
+Тема: декомпозиция PluginManager (232 строки → 3 слоя + фасад)
+
+Порядок изменений:
+1. PluginRegistry (models/) — чистый Python, хранение available/active/active_ui
+2. PluginLoader (services/) — QObject, discover/load/deactivate с сигналами
+3. Новый формат UI-декларации (actions dict + menu_items/toolbar_items по ref id)
+4. PluginUI (views/) — QObject, build_menu/toolbar/dock/status
+5. PluginManager — фасад (тонкая обёртка для обратной совместимости)
+6. PluginWidget — принимает registry вместо списка
+7. main.py — DI-сборка (registry, loader, ui → manager)
+8. Тесты — test_plugin_registry, test_plugin_loader
+
+Попутно: поиск меню по тексту (find_menu_by_text) — решает дублирование подменю.
+variant_tool_submenu — убран переключатель, оставлен InstantPopupArrow.

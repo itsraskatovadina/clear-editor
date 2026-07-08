@@ -101,3 +101,22 @@ class FileTabModel:
     @property
     def current_index(self) -> int:
         return self._current_index
+
+    def index_of(self, path: Path) -> int:
+        for i, d in enumerate(self._documents):
+            if d.file_path == path:
+                return i
+        return -1
+
+    def index_of_doc(self, doc: Document) -> int:
+        try:
+            return self._documents.index(doc)
+        except ValueError:
+            return -1
+
+    def all_docs(self) -> List[Document]:
+        return list(self._documents)
+
+    def move_doc(self, from_idx: int, to_idx: int):
+        doc = self._documents.pop(from_idx)
+        self._documents.insert(to_idx, doc)
