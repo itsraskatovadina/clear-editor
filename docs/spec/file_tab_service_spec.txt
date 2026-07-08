@@ -3,6 +3,7 @@
 
 Граф зависимостей классов:   docs/dep_graph/dg_file_tab_srv.md
 Граф зависимостей методов:   docs/dep_graph/dg_file_tab_srv_deep.md
+Граф + EditorApp:           docs/dep_graph/dg_file_tab_srv_ext.md
 
 1. НАЗНАЧЕНИЕ
 ---------------
