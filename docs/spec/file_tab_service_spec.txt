@@ -4,6 +4,7 @@
 Граф зависимостей классов:   docs/dep_graph/dg_file_tab_srv.md
 Граф зависимостей методов:   docs/dep_graph/dg_file_tab_srv_deep.md
 Граф + EditorApp:           docs/dep_graph/dg_file_tab_srv_ext.md
+Таблица вызовов методов:    docs/dep_graph/file_tab_srv_calls.md
 
 1. НАЗНАЧЕНИЕ
 ---------------
@@ -13,11 +14,13 @@
 2. АРХИТЕКТУРА
 ----------------
 
-  FileTabSrv (core/services/file_tab_srv.py)
-    ├── _view: FileTabView           (core/views/file_tab_view.py)
-    ├── _model: FileTabModel         (core/models/file_tab_models.py)
-    ├── _widgets: List[EditorWidget] (core/views/editor_widget.py)
-    └── _editor_class — класс редактора (по умолч. HTMLEditor)
+   FileTabSrv (core/services/file_tab_srv.py)
+     ├── _view: FileTabView           (core/views/file_tab_view.py)
+     ├── _model: FileTabModel         (core/models/file_tab_models.py)
+     └── _editor_class — класс редактора (по умолч. HTMLEditor)
+    
+   Виджеты вкладок хранятся в QTabWidget (FileTabView).
+   Доступ: _view.editor_at(index) / public widget_at(index).
 
   EditorApp.core/editor_app.py:
     file_tab_view = FileTabView(parent=self)
@@ -60,8 +63,12 @@
     add_tab(None)
 
   add_tab(path: Path | None) -> bool
-    Если файл уже открыт — переключает на его вкладку.
+    Если файл уже открыт — вызывает activate_tab.
     Иначе создаёт Document + EditorWidget, загружает файл.
+
+  activate_tab(path: Path) -> bool
+    Если файл уже открыт — переключает на его вкладку.
+    Возвращает True; иначе False.
 
   --- Закрытие ---
 
@@ -71,13 +78,16 @@
 
   close_all_tab() -> bool
 
-  --- Сохранение / перезагрузка ---
+  --- Сохранение / перезагрузка / информация ---
 
-  current_tab_save()
-  current_tab_save_as()
-  current_tab_reload()
-  current_tab_close()
-  current_tab_view_property()
+  current_tab_process(action: str)
+    Единый метод вместо пяти current_tab_*.
+    action: "save", "save_as", "close", "reload", "property".
+    Использует current_widget() для проверки наличия вкладки.
+    Внутри: index = self._view.currentIndex(), затем if/elif по action.
+
+  view_property_tab(index: int)
+    Показывает полный путь файла. Выделен из старого current_tab_view_property.
 
   --- Открытие файла ---
 
@@ -99,6 +109,9 @@
   current_document() -> Document | None
 
   tab_count() -> int
+
+  widget_at(index: int) -> EditorWidget | None
+    Публичный доступ к виджету вкладки (используется плагинами).
 
   --- Внешние изменения ---
 
