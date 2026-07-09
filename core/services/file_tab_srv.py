@@ -21,7 +21,6 @@ class FileTabSrv(QObject):
         self._view = view
         self._editor_class = editor_class
         self._model = FileTabModel()
-        self._widgets = []
         self._programmatic_change = False
         self._focus_check_disabled = False
 
@@ -40,23 +39,28 @@ class FileTabSrv(QObject):
     def new_tab(self):
         self.add_tab(None)
 
+    def activate_tab(self, path):
+        i = self._model.index_of(path)
+        if i >= 0:
+            doc = self._model.at(i)
+            self._programmatic_change = True
+            self._view.setCurrentIndex(i)
+            self._programmatic_change = False
+            self._model.set_current(i)
+            fname = str(path)
+            self.message.emit(
+                f"file {fname} already open", "FileTabSrv", "info"
+            )
+            mod_label = "*" if doc.modified else ""
+            self.editor_state_changed.emit(
+                path.name, fname, mod_label, "Reopened"
+            )
+            return True
+        return False
+
     def add_tab(self, path=None):
         if path:
-            i = self._model.index_of(path)
-            if i >= 0:
-                doc = self._model.at(i)
-                self._programmatic_change = True
-                self._view.setCurrentIndex(i)
-                self._programmatic_change = False
-                self._model.set_current(i)
-                fname = str(path)
-                self.message.emit(
-                    f"file {fname} already open", "FileTabSrv", "info"
-                )
-                mod_label = "*" if doc.modified else ""
-                self.editor_state_changed.emit(
-                    path.name, fname, mod_label, "Reopened"
-                )
+            if self.activate_tab(path):
                 return True
             if not self._check_path_exists(path):
                 return False
@@ -64,7 +68,6 @@ class FileTabSrv(QObject):
         doc = self._model.add(path)
         ew = self._create_widget(doc)
         doc.bind(ew.document())
-        self._widgets.append(ew)
 
         if path is not None:
             if not self._load_file(doc, ew):
@@ -103,7 +106,7 @@ class FileTabSrv(QObject):
     def close_tab(self, index, close_last_tab=False):
         if not close_last_tab and self._model.count <= 1:
             return False
-        ew = self._widgets[index]
+        ew = self._view.editor_at(index)
         doc = self._model.at(index)
         if doc.modified:
             text_question = f'"{doc.title}" has unsaved changes. Do you want to save before closing?'
@@ -125,7 +128,6 @@ class FileTabSrv(QObject):
 
     def _remove_tab(self, index):
         self._model.remove(index)
-        self._widgets.pop(index)
         self._view.remove_editor_tab(index)
 
     def close_all_tab(self):
@@ -143,32 +145,23 @@ class FileTabSrv(QObject):
 
     # --- save / save-as / reload ---
 
-    def current_tab_save(self):
-        index = self._view.currentIndex()
-        if index == -1:
+    def current_tab_process(self, action: str):
+        widget = self.current_widget()
+        if widget is None:
             return
-        self._save_tab(index)
-
-    def current_tab_save_as(self):
         index = self._view.currentIndex()
-        if index == -1:
-            return
-        self._save_as_tab(index)
+        if action == "save":
+            self._save_tab(index)
+        elif action == "save_as":
+            self._save_as_tab(index)
+        elif action == "close":
+            self.close_tab(index)
+        elif action == "reload":
+            self._reload_tab(index)
+        elif action == "property":
+            self.view_property_tab(index)
 
-    def current_tab_close(self):
-        index = self._view.currentIndex()
-        return self.close_tab(index)
-
-    def current_tab_reload(self):
-        index = self._view.currentIndex()
-        if index == -1:
-            return
-        self._reload_tab(index, self._widgets[index])
-
-    def current_tab_view_property(self):
-        index = self._view.currentIndex()
-        if index == -1:
-            return
+    def view_property_tab(self, index):
         doc = self._model.at(index)
         if doc.file_path:
             if not self._check_path_exists(doc.file_path):
@@ -219,12 +212,13 @@ class FileTabSrv(QObject):
             self.message.emit(str(err), "FileTabSrv", "error")
             return False
 
-    def _reload_tab(self, index, ew):
+    def _reload_tab(self, index):
         doc = self._model.at(index)
         if doc.file_path is None:
             return False
         if not self._check_path_exists(doc.file_path):
             return False
+        ew = self._view.editor_at(index)
         cursor = ew.text_cursor()
         position = cursor.position()
         if self._load_file(doc, ew):
@@ -272,13 +266,12 @@ class FileTabSrv(QObject):
         if from_idx == to_idx:
             return
         self._model.move_doc(from_idx, to_idx)
-        self._widgets.insert(to_idx, self._widgets.pop(from_idx))
         self._model.set_current(self._view.currentIndex())
 
     def _on_current_changed(self, index):
         if self._programmatic_change:
             return
-        ew = self._widgets[index] if 0 <= index < len(self._widgets) else None
+        ew = self._view.editor_at(index) if index >= 0 else None
         if ew:
             ew.set_focus()
             self._model.set_current(index)
@@ -302,22 +295,25 @@ class FileTabSrv(QObject):
     # --- public API for EditorApp ---
 
     def current_editor(self):
-        index = self._view.currentIndex()
-        if 0 <= index < len(self._widgets):
-            return self._widgets[index].editor
-        return None
+        widget = self.current_widget()
+        return widget.editor if widget else None
 
     def current_widget(self):
         index = self._view.currentIndex()
-        if 0 <= index < len(self._widgets):
-            return self._widgets[index]
-        return None
+        if index == -1:
+            return None
+        return self._view.editor_at(index)
 
     def current_document(self):
         return self._model.current()
 
     def tab_count(self):
         return self._model.count
+
+    def widget_at(self, index):
+        if 0 <= index < self._model.count:
+            return self._view.editor_at(index)
+        return None
 
     # --- external modification check ---
 
@@ -355,4 +351,4 @@ class FileTabSrv(QObject):
             elif clicked == msg_box.button(QMessageBox.Ignore):
                 doc.last_file_mtime = datetime.datetime.now()
             elif clicked == reload_btn:
-                self._reload_tab(index, self._widgets[index])
+                self._reload_tab(index)

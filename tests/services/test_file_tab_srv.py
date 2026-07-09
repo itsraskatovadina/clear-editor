@@ -84,7 +84,7 @@ def test_save_tab():
 
         _modify_current(srv, "modified")
 
-        srv.current_tab_save()
+        srv.current_tab_process("save")
         _events()
         assert p.read_text(encoding="utf-8") == "modified"
         doc = srv.current_document()
@@ -109,7 +109,7 @@ def test_save_as_tab():
             return (str(dst), "")
 
         with patch.object(QFileDialog, "getSaveFileName", mock_saveas):
-            srv.current_tab_save_as()
+            srv.current_tab_process("save_as")
             _events()
 
         assert dst.read_text(encoding="utf-8") == "saved as"
@@ -126,7 +126,7 @@ def test_close_tab_without_modification():
     _events()
 
     assert srv.tab_count() == 2
-    srv.current_tab_close()
+    srv.current_tab_process("close")
     _events()
     assert srv.tab_count() == 1
     print("  OK close_tab without modification")
@@ -220,22 +220,34 @@ def test_open_file():
 
 
 def test_tab_moved():
-    view = FileTabView()
-    srv = FileTabSrv(view)
-    srv.new_tab()
-    srv.new_tab()
-    _events()
+    with tempfile.TemporaryDirectory() as tmp:
+        a = Path(tmp) / "a.txt"
+        b = Path(tmp) / "b.txt"
+        a.write_text("content a")
+        b.write_text("content b")
 
-    assert srv.tab_count() == 2
+        view = FileTabView()
+        srv = FileTabSrv(view)
+        srv.add_tab(a)
+        srv.add_tab(b)
+        _events()
 
-    doc0 = srv.current_document()
-    tab_bar = view.tabBar()
-    tab_bar.moveTab(0, 1)
-    _events()
+        assert srv.tab_count() == 2
 
-    doc1 = srv._model.at(0)
-    assert doc1 is doc0
-    print("  OK tab_moved")
+        doc0 = srv._model.at(0)
+        doc1 = srv._model.at(1)
+        assert doc0.file_path == a
+        assert doc1.file_path == b
+        assert doc0.content == "content a"
+        assert doc1.content == "content b"
+
+        tab_bar = view.tabBar()
+        tab_bar.moveTab(0, 1)
+        _events()
+
+        assert srv._model.at(1) is doc0
+        assert srv._model.at(0) is doc1
+        print("  OK tab_moved")
 
 
 def test_reload_tab():
@@ -252,7 +264,7 @@ def test_reload_tab():
 
         p.write_text("version 2")
 
-        srv.current_tab_reload()
+        srv.current_tab_process("reload")
         _events()
 
         doc = srv.current_document()

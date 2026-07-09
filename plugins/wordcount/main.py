@@ -23,7 +23,7 @@ class WordCountPlugin(PluginBase):
         self._connected = set()
 
         for i in range(editor.file_tab_srv.tab_count()):
-            self._connect_editor(editor.file_tab_srv._widgets[i])
+            self._connect_editor(editor.file_tab_srv.widget_at(i))
 
         editor.file_tab_srv.editor_state_changed.connect(self._on_editor_state)
         editor.file_tab_view.current_changed.connect(self._on_tab_switch)
@@ -57,16 +57,19 @@ class WordCountPlugin(PluginBase):
     def _find_widget_by_id(self, wid):
         if not self._editor:
             return None
-        for w in self._editor.file_tab_srv._widgets:
+        srv = self._editor.file_tab_srv
+        for i in range(srv.tab_count()):
+            w = srv.widget_at(i)
             if id(w) == wid:
                 return w
         return None
 
     def _on_editor_state(self, name, fname, mod_label, operation):
         if operation in ("Opened", "New"):
-            widgets = self._editor.file_tab_srv._widgets
-            if widgets:
-                self._connect_editor(widgets[-1])
+            srv = self._editor.file_tab_srv
+            count = srv.tab_count()
+            if count:
+                self._connect_editor(srv.widget_at(count - 1))
 
     def _on_tab_switch(self, index):
         self._update_count()
