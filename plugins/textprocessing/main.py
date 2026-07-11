@@ -151,14 +151,14 @@ class TextProcessingPlugin(PluginBase):
         if not self._templates:
             return
         template_items = []
-        for name, text in self._templates.items():
+        for name in self._templates:
             template_items.append({
                 "kind": "action",
                 "id": f"template_{name}",
                 "text": name.replace("_", " ").title(),
-                "tooltip": f"Insert template: {text[:30]}...",
+                "tooltip": f"Insert template: {self._templates[name][:30]}...",
                 "statustip": f"Insert template: {name}",
-                "callback": lambda checked, t=text: self._insert_template(t),
+                "callback": "_insert_template_by_name",
             })
         template_menu = {
             "kind": "menu",
@@ -167,6 +167,15 @@ class TextProcessingPlugin(PluginBase):
         }
         self.menu_items[0]["content"].append({"kind": "separator"})
         self.menu_items[0]["content"].append(template_menu)
+
+    def _insert_template_by_name(self):
+        action = self.sender()
+        if not action:
+            return
+        name = action.text().replace(" ", "_").lower()
+        template_text = self._templates.get(name, "")
+        if template_text:
+            self._insert_template(template_text)
 
     def _insert_template(self, template_text):
         editor_widget = self._editor.current_editor()
