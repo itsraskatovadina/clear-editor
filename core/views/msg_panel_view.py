@@ -20,9 +20,9 @@ class MsgPanelView(QTabWidget):
         self.view_box = QTextEdit(self)
         self.view_box.setReadOnly(True)
 
-        self.addTab(self.err_box, "Err")
         self.addTab(self.msg_box, "Msg")
         self.addTab(self.view_box, "View")
+        self.addTab(self.err_box, "Err")
         self.setTabPosition(QTabWidget.West)
         self.setUsesScrollButtons(True)
         self.setCurrentIndex(0)

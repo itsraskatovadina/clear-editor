@@ -23,7 +23,7 @@ class WordCountPlugin(PluginBase):
         self._connected = set()
 
         for i in range(editor.file_tab_srv.tab_count()):
-            self._connect_editor(editor.file_tab_srv.widget_at(i))
+            self._connect_editor_at(i)
 
         editor.file_tab_srv.editor_state_changed.connect(self._on_editor_state)
         editor.file_tab_view.current_changed.connect(self._on_tab_switch)
@@ -38,38 +38,37 @@ class WordCountPlugin(PluginBase):
             self._editor.file_tab_view.current_changed.disconnect(
                 self._on_tab_switch
             )
+            srv = self._editor.file_tab_srv
             for ew_id in list(self._connected):
-                try:
-                    ew = self._find_widget_by_id(ew_id)
-                    if ew:
-                        ew.editor.textChanged.disconnect(self._update_count)
-                except TypeError:
-                    pass
+                idx = self._find_index_by_id(ew_id)
+                if idx >= 0:
+                    srv.with_editor(idx, lambda e: e.textChanged.disconnect(self._update_count))
         self._connected.clear()
         self._editor = None
 
-    def _connect_editor(self, ew):
-        if id(ew) in self._connected:
+    def _connect_editor_at(self, index):
+        srv = self._editor.file_tab_srv
+        ew = srv.widget_at(index)
+        if ew is None or id(ew) in self._connected:
             return
         self._connected.add(id(ew))
-        ew.editor.textChanged.connect(self._update_count)
+        srv.with_editor(index, lambda e: e.textChanged.connect(self._update_count))
 
-    def _find_widget_by_id(self, wid):
+    def _find_index_by_id(self, wid):
         if not self._editor:
-            return None
+            return -1
         srv = self._editor.file_tab_srv
         for i in range(srv.tab_count()):
-            w = srv.widget_at(i)
-            if id(w) == wid:
-                return w
-        return None
+            if id(srv.widget_at(i)) == wid:
+                return i
+        return -1
 
     def _on_editor_state(self, name, fname, mod_label, operation):
         if operation in ("Opened", "New"):
             srv = self._editor.file_tab_srv
             count = srv.tab_count()
             if count:
-                self._connect_editor(srv.widget_at(count - 1))
+                self._connect_editor_at(count - 1)
 
     def _on_tab_switch(self, index):
         self._update_count()

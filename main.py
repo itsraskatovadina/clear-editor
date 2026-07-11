@@ -45,6 +45,10 @@ def main():
     # --- Theme ---
     editor_app.theme = ThemeService(target=editor_app)
 
+    # --- Menu bar ---
+    menu_bar = editor_app.menuBar()
+    editor_app.create_menu_bar(menu_bar)
+    
     editor_app.set_tab_panel()
 
     # --- Plugin system ---
@@ -67,10 +71,6 @@ def main():
         loaded = [loaded]
     for name in loaded:
         plugin_manager.activate(name, editor_app)
-
-    # --- Menu bar ---
-    menu_bar = editor_app.menuBar()
-    editor_app.create_menu_bar(menu_bar)
 
     def open_plugin_settings():
         active_before = plugin_manager.get_all_active()
