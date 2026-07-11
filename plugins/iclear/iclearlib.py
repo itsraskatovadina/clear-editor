@@ -684,6 +684,24 @@ class NodesNav(Iclear):
             return True
         return False
 
+    def collect_selected_pages(self):
+        """Collect pages based on current navigation state.
+        Returns list of IPage, or None if no level is selected."""
+        if self.page:
+            return [self.page]
+        elif self.cat:
+            return self._collect_subtree(self.cat)
+        elif self.man:
+            return self._collect_subtree(self.man)
+        elif self.top:
+            return self._collect_subtree(self.top)
+        return None
+
+    def _collect_subtree(self, node):
+        pages = []
+        node.travers(lambda n: pages.append(n) if isinstance(n, IPage) else None)
+        return pages
+
     def get_url(self):
         """generating a link like http://iclear/conspect/ref/soft/development/
         or http://iclear/conspect/ref/soft/development/pages/tools/git.php"""

@@ -204,7 +204,8 @@ class IclearWidget(QWidget):
         menu.addAction(checkMapAction)
 
         self._validate_action = None
-        menu.aboutToShow.connect(self._update_validate_action)
+        self._check_links_action = None
+        menu.aboutToShow.connect(self._update_htmltools_actions)
 
         self.btnMenu.setMenu(menu)
         hboxLay.addWidget(self.btnMenu)
@@ -260,39 +261,23 @@ class IclearWidget(QWidget):
                 return True
         return False
 
-    def _collect_pages(self, node):
-        pages = []
-        node.travers(lambda n: pages.append(n) if isinstance(n, iclib.IPage) else None)
-        return pages
-
-    def _validate_all_pages(self):
+    def _get_htmltools(self):
         if not self._editor or not self._editor.plugin_manager:
-            return
-
+            return None
         hp = self._editor.plugin_manager.get_active("htmltools")
         if not hp:
             self._editor.msg_srv.post_message(
                 "Activate HTMLTools plugin first", "iclear", "warning"
             )
-            return
+        return hp
 
-        nav = self.winnodnav.nodnav
-        pages = []
-
-        if nav.page:
-            pages = [nav.page]
-        elif nav.cat:
-            pages = self._collect_pages(nav.cat)
-        elif nav.man:
-            pages = self._collect_pages(nav.man)
-        elif nav.top:
-            pages = self._collect_pages(nav.top)
-        else:
+    def _run_on_pages(self, action_name, action_func, label):
+        pages = self.winnodnav.nodnav.collect_selected_pages()
+        if pages is None:
             self._editor.msg_srv.post_message(
-                "No files selected, nothing to validate", "iclear", "warning"
+                "No files selected, nothing to " + action_name, "iclear", "warning"
             )
             return
-
         if not pages:
             self._editor.msg_srv.post_message(
                 "No pages in current section", "iclear", "info"
@@ -306,9 +291,9 @@ class IclearWidget(QWidget):
             full_path = page.full_path()
             if not iclib.Tools.check_exists_file(full_path):
                 continue
-            status_bar.showMessage(f"Validating: {page.short_path()}", 0)
+            status_bar.showMessage(f"{label}: {page.short_path()}", 0)
             QApplication.processEvents()
-            errors = hp.validate_html(file_path=full_path)
+            errors = action_func(full_path)
             if errors:
                 errors_count += 1
                 for line, msg in errors:
@@ -316,7 +301,6 @@ class IclearWidget(QWidget):
                         f"{page.full_path()} (line {line}): {msg}",
                         "iclear", "warning",
                     )
-
         status_bar.clearMessage()
 
         if errors_count == 0:
@@ -325,22 +309,43 @@ class IclearWidget(QWidget):
             )
         else:
             self._editor.msg_srv.post_message(
-                f"Validated {total}, {errors_count} with errors",
+                f"{label}: {total} files, {errors_count} with errors",
                 "iclear", "warning",
             )
 
-    def _update_validate_action(self):
+    def _validate_all_pages(self):
+        hp = self._get_htmltools()
+        if not hp:
+            return
+        self._run_on_pages("validate", hp.validate_html, "Validating")
+
+    def _check_links_all_pages(self):
+        hp = self._get_htmltools()
+        if not hp:
+            return
+        self._run_on_pages("check links", hp.check_internal_links, "Checking links")
+
+    def _update_htmltools_actions(self):
         hp = None
         if self._editor and self._editor.plugin_manager:
             hp = self._editor.plugin_manager.get_active("htmltools")
 
+        menu = self.btnMenu.menu()
+
         if hp and self._validate_action is None:
             self._validate_action = QAction("validate html", self)
             self._validate_action.triggered.connect(self._validate_all_pages)
-            self.btnMenu.menu().addAction(self._validate_action)
+            menu.addAction(self._validate_action)
+
+            self._check_links_action = QAction("check internal links", self)
+            self._check_links_action.triggered.connect(self._check_links_all_pages)
+            menu.addAction(self._check_links_action)
+
         elif not hp and self._validate_action is not None:
-            self.btnMenu.menu().removeAction(self._validate_action)
+            menu.removeAction(self._validate_action)
+            menu.removeAction(self._check_links_action)
             self._validate_action = None
+            self._check_links_action = None
 
     def refill_host(self):
         nodedict = self.winnodnav.nodnav.get_dict()

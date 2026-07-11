@@ -129,6 +129,10 @@
   - host, site, top, man, cat, page (атрибуты-узлы)
   - set_dict(dict) — установка узлов по словарю {site, top, man, cat, page}
   - get_dict() — возвращает словарь
+  - collect_selected_pages() → list[IPage] | None
+    Выбор файлов по текущему уровню навигации:
+      page → [page], cat → все IPage под cat, man → все IPage под man,
+      top → все IPage под top, ничего не выбрано → None
   - get_url() — генерация URL вида:
     http://host/site/ref/top/man/pages/cat/page.php
   - set_from_url(url) — парсинг URL в узлы
@@ -178,6 +182,8 @@
       * gen_plug_pagephp — создание шаблона страницы
       * gen_content_list — генерация списка содержимого
       * check_map — проверка map.xml
+      * validate html — валидация HTML (динамически, при наличии htmltools)
+      * check internal links — проверка внутренних ссылок (динамически)
 
 4.4. IclearSettingDialog(QDialog) — настройки
   - hostpath (apache sites dir)
@@ -256,31 +262,40 @@ NodesNav хранит текущий путь: site → top → man → cat → 
 -----------------------
 
 7.1. Зависимость: HTMLTools
-  - Плагин iclear вызывает htmltools.validate_html(file_path) для валидации HTML
-  - Плагин HTMLTools должен быть активирован для работы функции валидации
-  - Пункт меню "validate html" создаётся динамически: появляется только если
-    HTMLTools активен (проверка через editor.plugin_manager.get_active("htmltools")
-    при каждом открытии меню)
+  - Плагин iclear вызывает htmltools для валидации HTML и проверки ссылок
+  - Плагин HTMLTools должен быть активирован для работы этих функций
+  - Пункты меню "validate html" и "check internal links" создаются динамически:
+    появляются только если HTMLTools активен
 
-7.2. Метод _validate_all_pages()
+7.2. Общая архитектура: выделение файлов → действие
 
-  Вызывается из пункта меню "validate html". Поведение зависит от уровня навигации:
+  Разделение ответственности:
+    NodesNav.collect_selected_pages() — выбор файлов по навигации
+    IclearWidget._run_on_pages() — цикл обработки + статус-бар + итоги
+    Конкретные методы (_validate_all_pages, _check_links_all_pages) — обёртки
 
-    page выбран       → валидируется только этот page
-    cat выбран        → все IPage под этим cat (travers)
-    man выбран        → все IPage под этим man (travers)
-    top выбран        → все IPage под этим top (travers)
-    ничего не выбрано → сообщение "No files selected, nothing to validate"
+  _get_htmltools() → HTMLToolsPlugin | None
+    Получение плагина + проверка активации. Если не активен — предупреждение.
 
-  Для каждого файла:
-    1. Проверка существования файла (check_exists_file)
-    2. Вывод в статус-бар: "Validating: {short_path}"
-    3. Вызов hp.validate_html(file_path=full_path)
-    4. При ошибках — вывод в msg_panel: "{full_path} (line {line}): {msg}"
+  _run_on_pages(action_name, action_func, label)
+    Универсальный цикл обработки:
+      1. collect_selected_pages() → None = "нет выделения", [] = "пусто"
+      2. Для каждого page: check_exists_file → action_func(full_path)
+      3. Ошибки → msg_panel: "{path} (line {line}): {msg}"
+      4. Итог: "All N files OK" или "{label}: N files, M with errors"
 
-  После завершения:
-    - Статус-бар очищается
-    - Сообщение: "All {total} files OK" или "Validated {total}, {errors_count} with errors"
+7.3. validate html
+
+  _validate_all_pages() → _run_on_pages("validate", hp.validate_html, "Validating")
+
+7.4. check internal links
+
+  _check_links_all_pages() → _run_on_pages("check links", hp.check_internal_links, "Checking links")
+
+7.5. Динамическое меню
+
+  _update_htmltools_actions() — вызывается при aboutToShow меню.
+  Добавляет/удаляет оба пункта (validate + check_links) одновременно.
 
 7.3. Доступ к plugin_manager
 
@@ -303,14 +318,12 @@ NodesNav хранит текущий путь: site → top → man → cat → 
 
 9. ПЛАН ДОРАБОТКИ
 -------------------
-  Отделить конкретный вид обработки (валидация, генерация кода и т.д.)
-  от выбора файлов. Идея:
-    - iclear отвечает только за навигацию и предоставление списка файлов
-      на текущем уровне (page/cat/man/top)
-    - Конкретная обработка (validate_html, gen_content_list и т.п.)
-      реализуется внешними плагинами
-    - iclear предоставляет механизм: "вот список файлов — кто хочет обработать?"
-    - Это позволит добавлять новые виды обработки без изменения кода iclear
+  [Выполнено] Отделить конкретный вид обработки от выбора файлов:
+    - NodesNav.collect_selected_pages() — выбор файлов по навигации
+    - _run_on_pages() — обобщённый цикл обработки
+    - _validate_all_pages, _check_links_all_pages — конкретные действия
+  [Выполнено] Добавить проверку внутренних ссылок (check_internal_links)
+    через межплагинный вызов htmltools
 
 10. СОГЛАШЕНИЯ
 ----------------
