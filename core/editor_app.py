@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel, QAction, QToolBar, QStyle
+from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel, QAction, QToolBar, QStyle, QApplication
 from PyQt5.QtGui import QFont, QIcon, QKeySequence
 from PyQt5.QtCore import Qt, QPoint, QSize, pyqtSignal
 
@@ -76,10 +76,14 @@ class EditorApp(QMainWindow):
 
         self.recent_files = cs.restore_recent_files()
 
+    def restore_toolbar_state(self):
+        self._config_service.restore_toolbar_state(self)
+
     def closeEvent(self, event):
         if self.settings is not None:
             cs = self._config_service
             cs.save_window_geometry(self)
+            cs.save_toolbar_state(self)
             font = self.font()
             cs.save_font_size(font.pointSize())
             cs.save_recent_files(self.recent_files)
@@ -212,6 +216,13 @@ class EditorApp(QMainWindow):
         self.recent_files_changed.connect(self._update_recent_files_menu)
         self._update_recent_files_menu()
 
+        file_menu.addSeparator()
+        action_exit = file_menu.addAction(
+            self.style().standardIcon(QStyle.SP_DialogCloseButton), "Exit"
+        )
+        action_exit.setShortcut(QKeySequence.Quit)
+        action_exit.triggered.connect(QApplication.quit)
+
         settings_menu = self.menu_service.get_menu("Settings")
         action_zoom_in = settings_menu.addAction("Zoom In")
         action_zoom_in.setShortcut(QKeySequence.ZoomIn)
@@ -226,6 +237,7 @@ class EditorApp(QMainWindow):
 
     def _create_main_toolbar(self):
         toolbar = QToolBar("Main", self)
+        toolbar.setObjectName("MainToolBar")
         self.addToolBar(toolbar)
 
         action_new = toolbar.addAction(

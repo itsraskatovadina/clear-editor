@@ -60,6 +60,7 @@ class PluginUI(QObject):
 
         if plugin.toolbar_items:
             toolbar = QToolBar(f"plugin_{name}", editor)
+            toolbar.setObjectName(f"plugin_{name}")
             editor.addToolBar(toolbar)
             items = self._resolve_toolbar_items(plugin.toolbar_items, plugin.actions)
             created = self._create_ui_items(toolbar, items, plugin)
@@ -69,6 +70,7 @@ class PluginUI(QObject):
         toolbar_widget = plugin.create_toolbar_widget(editor)
         if toolbar_widget is not None:
             toolbar = QToolBar(f"plugin_{name}_toolbar", editor)
+            toolbar.setObjectName(f"plugin_{name}_toolbar")
             toolbar.addWidget(toolbar_widget)
             editor.addToolBar(toolbar)
             toolbars.append(toolbar)

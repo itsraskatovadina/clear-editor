@@ -24,15 +24,32 @@ QMainWindow-оркестратор. Владеет всеми компонент
 3. ЖИЗНЕННЫЙ ЦИКЛ (main.py)
 ------------------------------
 
+  Порядок вызовов критичен. Нарушение порядка приводит к багам
+  (не восстанавливаются тулбары, плагины не находят меню и т.д.).
+
   1. EditorApp() — создание всех дочерних компонентов
   2. load_config() → ConfigService.__init__ → _validate_plugins_dir
   3. ErrorHandler / excepthook — перехват stderr
-  4. restore_settings() → _validate_ui_defaults → restore_window_geometry → font_size → recent_files
+  4. restore_settings() → geometry, font_size, recent_files
+     ⚠️ toolbar_state НЕ восстанавливается здесь — плагинов ещё нет
   5. ThemeService — инициализация
-  6. set_tab_panel() → restore_open_files / new_tab
-  7. PluginManager — discover + activate
-  8. create_menu_bar()
-  9. show()
+  6. create_menu_bar() → MenuService (шаблон: File, Edit, Tools, Settings)
+     ⚠️ ДО загрузки плагинов — плагины добавляют пункты через register_menu
+  7. set_tab_panel() → restore_open_files / new_tab
+  8. PluginManager — discover + activate (создают plugin-тулбары)
+  9. restore_toolbar_state() — ПОСЛЕ загрузки плагинов (все тулбары на месте)
+  10. show()
+
+  Критичные зависимости порядка:
+  - create_menu_bar() (6) ДО PluginManager.activate() (8):
+    плагины вызывают menu_service.register_menu() при activate(),
+    следовательно шаблон меню уже должен существовать.
+  - restore_toolbar_state() (9) ПОСЛЕ PluginManager.activate() (8):
+    saveState()/restoreState() работают со всеми тулбарами сразу,
+    plugin-тулбары должны уже существовать к моменту restore.
+  - restore_settings() (4) ДО create_menu_bar() (6):
+    geometry окна восстанавливается до создания меню — корректно,
+    т.к. меню не зависит от geometry.
 
 4. СИГНАЛЬНЫЕ СОЕДИНЕНИЯ
 ---------------------------
@@ -57,9 +74,15 @@ QMainWindow-оркестратор. Владеет всеми компонент
   restore_settings()
     Валидирует ui_defaults (ошибки → msg_panel warning).
     Восстанавливает geometry, font_size, recent_files.
+    ⚠️ toolbar_state восстанавливается отдельно — см. restore_toolbar_state().
+
+  restore_toolbar_state()
+    Восстанавливает позиции тулбаров.
+    Вызывается ИЗ main.py ПОСЛЕ загрузки плагинов,
+    т.к. plugin-тулбары должны существовать к моменту restoreState().
 
   closeEvent(event)
-    Сохраняет geometry, font_size, recent_files, open_files через ConfigService.
+    Сохраняет geometry, toolbar_state, font_size, recent_files, open_files.
     Закрывает все вкладки через file_tab_srv.closeEvent.
 
   set_tab_panel()

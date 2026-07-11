@@ -135,3 +135,11 @@ class ConfigService:
 
     def sync(self):
         self.settings.sync()
+
+    def save_toolbar_state(self, window):
+        self.settings.setValue("toolbar_state", window.saveState())
+
+    def restore_toolbar_state(self, window):
+        state = self.settings.value("toolbar_state")
+        if state:
+            window.restoreState(state)

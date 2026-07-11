@@ -91,15 +91,9 @@ class HTMLToolsPlugin(PluginBase):
             "kind": "menu",
             "text": "Tools",
             "content": [
-                {
-                    "kind": "menu",
-                    "text": "HTML",
-                    "content": [
-                        index_actions["gen_content_list"],
-                        {"kind": "separator"},
-                        index_actions["validate_html"],
-                    ],
-                }
+                index_actions["gen_content_list"],
+                {"kind": "separator"},
+                index_actions["validate_html"],
             ],
         }
     ]

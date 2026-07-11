@@ -27,16 +27,13 @@
 
   menu_items = [
     {"kind": "menu", "text": "Tools", "content": [
-      {"kind": "menu", "text": "HTML", "content": [
-        index_actions["gen_content_list"],
-        {"kind": "separator"},
-        index_actions["validate_html"],
-      ]}
+      index_actions["gen_content_list"],
+      {"kind": "separator"},
+      index_actions["validate_html"],
     ]}
   ]
 
-  Вливается в существующее подменю Tools → HTML от TextProcessing
-  (plugin_ui.find_menu_by_text).
+  Пункты в основании меню Tools (без подменю HTML).
 
 4. МЕТОДЫ
 -----------

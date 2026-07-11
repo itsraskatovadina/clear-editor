@@ -83,6 +83,8 @@ def main():
     for name in loaded:
         plugin_manager.activate(name, editor_app)
 
+    editor_app.restore_toolbar_state()
+
     def open_plugin_settings():
         active_before = plugin_manager.get_all_active()
         selected = settings.value("active_plugins", [])
