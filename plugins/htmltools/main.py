@@ -76,9 +76,17 @@ class HTMLToolsPlugin(PluginBase):
         {
             "id": "gen_content_list",
             "text": "Generate content list",
+            "tooltip": "Generate table of contents from headings",
+            "statustip": "Generate table of contents from headings",
             "callback": "gen_content_list",
         },
-        {"id": "validate_html", "text": "Validate HTML", "callback": "validate_html"},
+        {
+            "id": "validate_html",
+            "text": "Validate HTML",
+            "tooltip": "Check HTML for tag nesting errors",
+            "statustip": "Check HTML for tag nesting errors",
+            "callback": "validate_html",
+        },
         {
             "id": "check_links",
             "text": "Check internal links",
