@@ -39,7 +39,7 @@ QMainWindow-оркестратор. Владеет всеми компонент
 
   file_tab_srv.message          → msg_srv.post_message
   file_tab_srv.editor_state_changed → on_editor_state_changed (заголовок окна + recent_files)
-  file_tab_srv.line_changed     → line_label.setText("Line: {line}")
+  file_tab_srv.editor_line_changed → line_label.setText("Line: {line}")
 
   msg_srv.display_error         → msg_panel.append_err
   msg_srv.display_message       → msg_panel.append_msg

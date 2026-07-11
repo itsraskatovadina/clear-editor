@@ -12,9 +12,9 @@ from core.views.editor_widget import EditorWidget
 
 
 class FileTabSrv(QObject):
-    editor_state_changed = pyqtSignal(str, str, str, str)
     message = pyqtSignal(str, str, str)
-    line_changed = pyqtSignal(int)
+    editor_state_changed = pyqtSignal(str, str, str, str)
+    editor_line_changed = pyqtSignal(int)
 
     def __init__(self, view, editor_class=QTextEdit, parent=None):
         super().__init__(parent)
@@ -31,7 +31,7 @@ class FileTabSrv(QObject):
     def _create_widget(self, document):
         ew = EditorWidget(parent=self._view, editor_class=self._editor_class)
         ew.modification_changed.connect(lambda: self._on_modification_changed(document))
-        ew.cursor_position_changed.connect(self.line_changed)
+        ew.cursor_position_changed.connect(self.editor_line_changed)
         return ew
 
     # --- tab management ---
@@ -146,10 +146,9 @@ class FileTabSrv(QObject):
     # --- save / save-as / reload ---
 
     def current_tab_process(self, action: str):
-        widget = self.current_widget()
-        if widget is None:
-            return
         index = self._view.currentIndex()
+        if index == -1:
+            return None
         if action == "save":
             self._save_tab(index)
         elif action == "save_as":
@@ -313,6 +312,12 @@ class FileTabSrv(QObject):
     def widget_at(self, index):
         if 0 <= index < self._model.count:
             return self._view.editor_at(index)
+        return None
+
+    def with_editor(self, index, callback):
+        ew = self._view.editor_at(index)
+        if ew:
+            return callback(ew.editor)
         return None
 
     # --- external modification check ---

@@ -20,7 +20,7 @@
 
 **Ключевые изменения:**
 - FileTabModel — чистый Python, тестируемый
-- FileTabSrv — QObject с сигналами editor_state_changed, message, line_changed
+- FileTabSrv — QObject с сигналами editor_state_changed, message, editor_line_changed
 - EditorWidget — тонкая обёртка над HTMLEditor
 
 ### Этап 1: MessageSrv (MsgPanel → MessageSrv + MsgPanelView + MessageModel)

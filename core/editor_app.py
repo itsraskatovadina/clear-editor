@@ -49,7 +49,7 @@ class EditorApp(QMainWindow):
         self.setCentralWidget(self.splitter)
 
         self.create_status_bar()
-        self.file_tab_srv.line_changed.connect(
+        self.file_tab_srv.editor_line_changed.connect(
             lambda line: self.line_label.setText(f"Line: {line}")
         )
 

@@ -55,7 +55,7 @@
       operation: "New", "Opened", "Saved", "Saved as", "Reload",
                  "Reopened", "tab_changed", "modification_changed"
     message(str, str, str)
-    line_changed(int)
+    editor_line_changed(int)
 
   --- Создание / добавление вкладок ---
 

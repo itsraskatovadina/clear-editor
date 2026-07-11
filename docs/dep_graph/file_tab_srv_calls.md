@@ -3,7 +3,7 @@
 | Метод | Вызывает / создаёт | Откуда вызывается |
 |---|---|---|
 | **`__init__`** | `FileTabModel()`, <br>подключает сигналы `_view.close_requested → _on_close_requested`, <br>`_view.current_changed → _on_current_changed`, <br>`_view.tab_moved → _on_tab_moved` | `EditorApp.__init__`, <br>тесты (`test_file_tab_srv.py`, `test_editor_app.py`) |
-| **`_create_widget(document)`** | создаёт `EditorWidget(parent=_view, editor_class=...)`, <br>подключает `ew.modification_changed → _on_modification_changed(document)`, <br>`ew.cursor_position_changed → line_changed` | `add_tab` |
+| **`_create_widget(document)`** | создаёт `EditorWidget(parent=_view, editor_class=...)`, <br>подключает `ew.modification_changed → _on_modification_changed(document)`, <br>`ew.cursor_position_changed → editor_line_changed` | `add_tab` |
 | **`new_tab()`** | `add_tab(None)` | `EditorApp` — меню File>New, `set_tab_panel` (когда нет файлов сессии); <br>тесты |
 | **`activate_tab(path)`** | `_model.index_of(path)`, `_model.at(i)`, <br>`_view.setCurrentIndex(i)`, `_model.set_current(i)`, <br>`message.emit(...)`, `editor_state_changed.emit(...)` | `add_tab` |
 | **`add_tab(path)`** | `activate_tab(path)`, `_check_path_exists(path)`, <br>`_model.add(path)`, `_create_widget(doc)`, `doc.bind(ew.document())`, <br>`_load_file(doc, ew)`, `_view.add_editor_tab(ew, title, tooltip)`, <br>`_view.setCurrentIndex(index)`, `_model.set_current(index)`, <br>`editor_state_changed.emit(...)` | `new_tab`, `open_file`, `set_files`, <br>`EditorApp.action_open_recent_file`; <br>тесты |

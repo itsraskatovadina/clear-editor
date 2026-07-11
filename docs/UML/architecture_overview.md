@@ -68,7 +68,7 @@
        │
 3. EditorWidget пересылает как cursor_position_changed
        │
-4. FileTabSrv получает → испускает line_changed(int)
+4. FileTabSrv получает → испускает editor_line_changed(int)
        │
 5. EditorApp обновляет статус-бар: "Line: 1"
        │

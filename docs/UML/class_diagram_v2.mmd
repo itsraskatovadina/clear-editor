@@ -73,7 +73,7 @@ classDiagram
         <<QObject>>
         +editor_state_changed: pyqtSignal(str, str, str, str)
         +message: pyqtSignal(str, str, str)
-        +line_changed: pyqtSignal(int)
+        +editor_line_changed: pyqtSignal(int)
         -_view: FileTabView
         -_model: FileTabModel
         -_editor_class: type
@@ -188,7 +188,7 @@ classDiagram
     %% ======================== SIGNAL CONNECTIONS ========================
     FileTabView ..> FileTabSrv : close_requested, current_changed, tab_moved >
     EditorWidget ..> FileTabSrv : modification_changed, cursor_position_changed >
-    FileTabSrv ..> EditorApp : editor_state_changed, message, line_changed >
+    FileTabSrv ..> EditorApp : editor_state_changed, message, editor_line_changed >
     EditorApp ..> MsgPanel : on_message >
     ErrorHandler ..> MsgPanel : new_error >
     PluginManager ..> EditorApp : activate/deactivate UI >

@@ -30,7 +30,7 @@ classDiagram
     class TabPanel {
         +tab_added: pyqtSignal(object)
         +editor_state_changed: pyqtSignal(str, str, str, str)
-        +line_changed: pyqtSignal(int)
+        +editor_line_changed: pyqtSignal(int)
         +message: pyqtSignal(str, str, str)
         +editor_class: type
         +__init__(parent, editor_class)
@@ -64,7 +64,7 @@ classDiagram
         +untitled_name: str
         +modification_label: str
         +user_modification_changed: pyqtSignal(str, str, str)
-        +line_changed: pyqtSignal(int)
+        +editor_line_changed: pyqtSignal(int)
         +message: pyqtSignal(str, str, str)
         +editor: QTextEdit
         +path: Path
@@ -204,8 +204,8 @@ classDiagram
     PluginManager *-- PluginBase : manages lifecycle
 
     %% Signal slots
-    FileEditor ..> TabPanel : user_modification_changed, line_changed, message >
-    TabPanel ..> EditorApp : editor_state_changed, line_changed, message >
+    FileEditor ..> TabPanel : user_modification_changed, editor_line_changed, message >
+    TabPanel ..> EditorApp : editor_state_changed, editor_line_changed, message >
     EditorApp ..> MsgPanel : on_message >
     ErrorHandler ..> MsgPanel : new_error >
     PluginManager ..> WordCountPlugin : activates
