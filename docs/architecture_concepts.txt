@@ -1,0 +1,201 @@
+АРХИТЕКТУРНЫЕ КОНЦЕПТЫ ClearEditor
+====================================
+
+1. MODEL-VIEW-SERVICE (MVS)
+-----------------------------
+
+Основной архитектурный паттерн проекта. Чёткое разделение на три слоя:
+
+  core/models/   — чистые Python-классы, без зависимостей от Qt
+  core/views/    — Qt-виджеты, только UI и сигналы
+  core/services/ — бизнес-логика, QObject с сигналами
+
+Модели не импортируют Qt. Представления не содержат бизнес-логики.
+Сервисы владеют всей координацией и правилами.
+
+2. ПАТТЕРНЫ ПРОЕКТИРОВАНИЯ
+---------------------------
+
+2.1. Observer / Pub-Sub (Qt Signals)
+
+  Основной механизм коммуникации между компонентами.
+  pyqtSignal объявляются в views и services, подключаются в main.py
+  или в других сервисах. Плагины подключаются к сигналам редактора
+  при on_load и отключаются при on_unload.
+
+2.2. Template Method (PluginBase)
+
+  Базовый класс определяет хуки lifecycle:
+    on_load(editor) — инициализация
+    on_unload() — очистка
+    create_toolbar_widget() — опциональный виджет
+    create_dock_widget() — опциональный dock
+
+  Подклассы переопределяют только нужные методы.
+  UI-требования декларируются через class-level атрибуты.
+
+2.3. Factory (Dynamic) — PluginLoader.load()
+
+  Динамическая загрузка модулей через importlib.
+  manifest.json указывает entry point и имя класса:
+    spec = importlib.util.spec_from_file_location(name, entry)
+    plugin_class = getattr(module, manifest["class"])
+    plugin = plugin_class()
+
+2.4. Facade — FileTabSrv
+
+  Скрывает координацию FileTabModel + FileTabView + EditorWidget.
+  Внешние вызовы используют единый интерфейс:
+    file_tab_srv.new_tab()
+    file_tab_srv.open_file(path)
+    file_tab_srv.current_tab_process("save")
+
+2.5. Strategy — current_tab_process(action)
+
+  Строка-диспетчер выбирает алгоритм:
+    "save" → _save_tab(index)
+    "save_as" → _save_as_tab(index)
+    "close" → close_tab(index)
+    "reload" → _reload_tab(index)
+
+2.6. Composition Root — main.py
+
+  Все зависимости создаются и связываются в main.py:
+    editor_app = EditorApp()
+    plugin_registry = PluginRegistry()
+    plugin_loader = PluginLoader()
+    plugin_ui = PluginUI()
+    plugin_manager = PluginManager(registry, loader, ui, ...)
+
+  Ни один класс не создаёт свои зависимости самостоятельно.
+
+2.7. Declarative UI — Plugin Declarations
+
+  Плагины описывают UI через данные, а не императивный код:
+    actions = [{"id": "...", "text": "...", "callback": "..."}]
+    menu_items = [{"kind": "menu", "text": "Edit", "content": [...]}]
+    toolbar_items = [{"ref": "action_id"}]
+    status_fields = {"signal_name": {"label_template": "Words: {}"}}
+
+  PluginUI читает декларации и создаёт QAction/QMenu/QToolBar.
+
+2.8. Reference Counting — MenuService
+
+  Меню видимо, пока хотя бы один плагин зарегистрирован:
+    register_menu("Edit", "textprocessing") → refs = {"textprocessing"}
+    register_menu("Edit", "htmltools")     → refs = {"textprocessing", "htmltools"}
+    unregister_menu("Edit", "textprocessing") → refs = {"htmltools"} → видимо
+    unregister_menu("Edit", "htmltools")      → refs = {} → скрыто
+
+2.9. Adapter / Wrapper — EditorWidget
+
+  Оборачивает QTextEdit, предоставляя чистый интерфейс сигналов:
+    modification_changed = pyqtSignal()
+    cursor_position_changed = pyqtSignal(int)
+
+  Скрывает детали Qt от сервисов и плагинов.
+
+2.10. Mediator — FileTabSrv
+
+  Посредник между FileTabView (UI) и FileTabModel (данные).
+  Сигналы view проходят через service к model и обратно.
+
+3. PRINCIPLES
+--------------
+
+3.1. Single Responsibility (SRP)
+
+  Каждый класс — одна ответственность:
+    Document          — файловый I/O одного файла
+    FileTabModel      — коллекция документов
+    FileTabView       — рендеринг вкладок
+    FileTabSrv        — координация model+view
+    MessageSrv        — форматирование и доставка сообщений
+    ConfigService     — persistence (JSON + QSettings)
+    ThemeService      — шрифты и цвета
+    MenuService       — жизненный цикл меню
+    PluginRegistry    — данные о плагинах
+    PluginLoader      — загрузка модулей
+    PluginUI          — построение UI из деклараций
+
+3.2. Open/Closed (OCP)
+
+  Расширение через плагины без изменения ядра:
+    - Новый плагин = новый подкласс PluginBase + manifest.json
+    - MenuService: новые меню добавляются через register_menu()
+    - Декларативный UI: новые действия добавляются в menu_items
+
+3.3. Liskov Substitution (LSP)
+
+  Все плагины взаимозаменяемы через PluginBase:
+    plugin_manager.get_active("htmltools") → Optional[PluginBase]
+    Вызов on_load(editor) единообразен для всех плагинов.
+
+3.4. Dependency Inversion (DIP)
+
+  Высокоуровневые модули зависят от абстракций (инжектированных collaborators):
+    EditorApp(config_service=ConfigService())
+    PluginManager(registry, loader, ui)
+    FileTabSrv(view, editor_class=QTextEdit)
+    HTMLEditor(completions=TagCompletionsModel())
+
+4. SIGNAL FLOW
+--------------
+
+  FileTabView.close_requested → FileTabSrv._on_close_requested
+  FileTabView.current_changed → FileTabSrv._on_current_changed
+  EditorWidget.modification_changed → FileTabSrv._on_modification_changed
+  FileTabSrv.editor_state_changed → EditorApp.on_editor_state_changed
+  FileTabSrv.editor_line_changed → MessageSrv → MsgPanelView
+  MessageSrv.display_error → MsgPanelView.append_err
+  MessageSrv.display_message → MsgPanelView.append_msg
+  MessageSrv.message_received → MsgPanelView._ensure_visible
+
+  Защита от рекурсии: флаг _programmatic_change подавляет
+  сигналы при программных изменениях текста/вкладок.
+
+5. PLUGIN LIFECYCLE
+--------------------
+
+  PluginManager.activate(name)
+    → PluginLoader.discover() — сканирование plugins/
+    → PluginLoader.load() — importlib, getattr(module, class)
+    → plugin.on_load(editor) — сохранение ссылок, подключение сигналов
+    → PluginUI.build_all() — создание меню/тулбара/dock из деклараций
+
+  PluginManager.deactivate(name)
+    → PluginUI.remove_ui() — удаление виджетов
+    → plugin.on_unload() — отключение сигналов, очистка ссылок
+    → MenuService.unregister_menu() — скрытие пустых меню
+
+6. ТЕСТИРУЕМОСТЬ
+-----------------
+
+  Модели: чистый Python, QTextDocument только как fixture.
+  Сервисы: реальные виджеты, моки для QFileDialog/QMessageBox.
+  Тесты: assertions + print, без фреймворка.
+
+  Тестовые файлы:
+    tests/models/test_document.py
+    tests/models/test_file_tab_model.py
+    tests/services/test_file_tab_srv.py
+    tests/services/test_config_service.py
+    tests/services/test_editor_app.py
+    tests/services/test_menu_service.py
+
+7. СВОДНАЯ ТАБЛИЦА
+-------------------
+
+  Паттерн                Где используется
+  ─────────────────────  ─────────────────────────────────
+  Model-View-Service     core/ (вся структура)
+  Observer/Pub-Sub       Qt signals (все компоненты)
+  Template Method        PluginBase (on_load/on_unload)
+  Factory (Dynamic)      PluginLoader.load() + importlib
+  Facade                 FileTabSrv
+  Strategy               current_tab_process(action)
+  Composition Root       main.py
+  Declarative UI         Plugin menu_items/toolbar_items
+  Reference Counting     MenuService.register/unregister
+  Adapter/Wrapper        EditorWidget → QTextEdit
+  Mediator               FileTabSrv (model ↔ view)
