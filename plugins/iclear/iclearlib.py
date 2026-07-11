@@ -125,10 +125,11 @@ class ANode(object):
             count = child.travers(func, count)
         return count
 
-    def travers_list_accum(self, func, results=[]):
+    def travers_list_accum(self, func, results=None):
         """traversing the tree downwards with a function call on the elements,
-        the results are saved in a list
-        mutable  default  argument  results"""
+        the results are saved in a list"""
+        if results is None:
+            results = []
         results.append(func(self))
         for child in self.children:
             child.travers_list_accum(func, results)
@@ -150,6 +151,7 @@ class Iclear(object):
         levels_index[el] = numerator
         numerator += 1
 
+    @staticmethod
     def is_level(level):
         """checks the presence of level in the list of levels"""
         num_level = Iclear.levels_index.get(level)
@@ -158,6 +160,7 @@ class Iclear(object):
         else:
             return True
 
+    @staticmethod
     def num_level(level):
         """returns the level number if it is in the list"""
         num_level = Iclear.levels_index.get(level)
@@ -168,6 +171,7 @@ class Iclear(object):
             return False
         return num_level
 
+    @staticmethod
     def next_level(level):
         """level navigation, returns the next level for level,
         for top - man, for man - cat, for cat - page, for page - None"""
@@ -179,6 +183,7 @@ class Iclear(object):
         else:
             return Iclear.levels_list[num_level + 1]
 
+    @staticmethod
     def prev_level(level):
         """level navigation, returns the previous level level for level,
         for top - None, for man - top, for cat - man, for page - cat"""
@@ -188,6 +193,7 @@ class Iclear(object):
         else:
             return Iclear.levels_list[num_level - 1]
 
+    @staticmethod
     def call_func_by_levels(func):
         """traversing all levels of levels_list, results are returned as a list"""
         results = []
@@ -780,6 +786,7 @@ class NodesNav(Iclear):
 
 
 class Service:
+    @staticmethod
     def gen_asidephp(man):
 
         asidename = os.path.join(man.full_path(), man.host().phpincdir, "aside.php")
@@ -808,6 +815,7 @@ class Service:
         # print(asidename, "\n", asidetext)
         Tools.write_file(asidename, asidetext)
 
+    @staticmethod
     def gen_headerphp(man):
         headertext = (
             '<div class="wrapper">\n\
@@ -823,6 +831,7 @@ class Service:
         # print(headername, "\n", headertext)
         Tools.write_file(headername, headertext)
 
+    @staticmethod
     def gen_partheadphp(man):
         partheadtext = (
             "<title>"
@@ -842,6 +851,7 @@ class Service:
         # print(partheadname, "\n", partheadtext)
         Tools.write_file(partheadname, partheadtext)
 
+    @staticmethod
     def gen_indexphp(man, msg=True):
         indextext = '<!DOCTYPE html>\n\
 <html lang="ru">\n\
@@ -912,12 +922,14 @@ class Service:
         # print(indexname, "\n", indextext)
         Tools.write_file(indexname, indextext)
 
+    @staticmethod
     def gen_index_phpinc(node):
         Service.gen_indexphp(node)
         Service.gen_asidephp(node)
         Service.gen_headerphp(node)
         Service.gen_partheadphp(node)
 
+    @staticmethod
     def gen_root_indexphp(site):
         indextext = '<!DOCTYPE html>\n\
 <html lang="ru">\n\
@@ -987,6 +999,7 @@ class Service:
         # print(indexname, "\n", indextext)
         Tools.write_file(indexname, indextext)
 
+    @staticmethod
     def gen_plug_pagephp(page):
 
         comments_delimiters = '\n\
@@ -1025,6 +1038,7 @@ class Service:
         # print(pagename, "\n", pagetext)
         Tools.write_file(pagename, pagetext)
 
+    @staticmethod
     def check_map(man):
         """checking the site map map
         all categories and pages should be unique by id and path,
@@ -1044,14 +1058,14 @@ class Service:
             else:
                 error_found = True
                 message = "Not a unique cat.path - " + cat.info()
-                Tools.output(message, outtype="err")
+                Tools.output(message, outtype="error")
 
             if cat.nid not in catsetnid:
                 catsetnid.add(cat.nid)
             else:
                 error_found = True
                 message = "Not a unique cat.nid - " + cat.info()
-                Tools.output(message, outtype="err")
+                Tools.output(message, outtype="error")
 
             pagesetpath = set()
             pagesetnid = set()
@@ -1059,7 +1073,7 @@ class Service:
             if len(cat.children) == 0:
                 error_found = True
                 message = "Empty cat - " + cat.info()
-                Tools.output(message, outtype="err")
+                Tools.output(message, outtype="error")
 
             for page in cat.children:
                 if page.path not in pagesetpath:
@@ -1067,17 +1081,18 @@ class Service:
                 else:
                     error_found = True
                     message = "Not a unique page.path - " + page.info()
-                    Tools.output(message, outtype="err")
+                    Tools.output(message, outtype="error")
 
                 if page.nid not in pagesetnid:
                     pagesetnid.add(page.nid)
                 else:
                     error_found = True
                     message = "Not a unique page.nid - " + page.info()
-                    Tools.output(message, outtype="err")
+                    Tools.output(message, outtype="error")
 
         return error_found
 
+    @staticmethod
     def diff_map_by_dir(man):
         """сравнение карты справочника map с каталогами и файлами в /pages
         1
@@ -1121,7 +1136,7 @@ class Service:
                         + " не указанный каталог "
                         + catdir
                     )
-                    Tools.output(message, outtype="err")
+                    Tools.output(message, outtype="error")
 
         error_file_found = []
         for cat in man.children:
@@ -1129,14 +1144,14 @@ class Service:
             if not (os.path.exists(cat.full_path())):
                 error_found = True
                 message = "Не существует директории " + cat.info()
-                Tools.output(message, outtype="err")
+                Tools.output(message, outtype="error")
 
             # всем страницами (page) из карты должны соответствовать файлы
             for page in cat.children:
                 if not (os.path.exists(page.full_path())):
                     error_found = True
                     message = "Не существует файла " + page.info()
-                    Tools.output(message, outtype="err")
+                    Tools.output(message, outtype="error")
 
             pagesdir_full_path = cat.full_path()
             pagesdir_content = next(os.walk(pagesdir_full_path))
@@ -1149,7 +1164,7 @@ class Service:
                     + " не указанный каталог "
                     + str(pagesdir_content[1])
                 )
-                Tools.output(message, outtype="err")
+                Tools.output(message, outtype="error")
 
             # всем файлам  на диске должны соответствовать page в карте
             pagelistpath = list(map(lambda node: node.path + ".php", cat.children))
@@ -1160,7 +1175,7 @@ class Service:
                     message = (
                         "В папке " + cat.full_path() + " не указанный файл " + page
                     )
-                    Tools.output(message, outtype="err")
+                    Tools.output(message, outtype="error")
 
         # переносим лишние файлы в папку ошибок
         if len(error_file_found) > 0:
