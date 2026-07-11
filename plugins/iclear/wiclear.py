@@ -152,7 +152,7 @@ class IclearWidget(QWidget):
         hboxLay = QHBoxLayout()
         hboxLay.setContentsMargins(0, 0, 0, 0)
 
-        self.btnSettings = QPushButton("\u2630", parent=self)
+        self.btnSettings = QPushButton("\u2699", parent=self)
         self.btnSettings.setFixedWidth(28)
         self.btnSettings.setToolTip("Settings")
         self.btnSettings.clicked.connect(self._open_settings)

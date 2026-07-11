@@ -1,0 +1,61 @@
+План: MenuService
+==================
+
+Проблема
+--------
+Нет шаблона меню — PluginUI динамически добавляет/удаляет верхние пункты,
+порядок зависит от плагинов, пустые меню прыгают.
+
+Решение
+--------
+Создать MenuService — единый источник правды для структуры меню.
+Шаблон: File, Edit, Tools, Settings. Edit/Tools скрыты до первого register.
+
+Шаг 1: MenuService (core/services/menu_service.py)
+----------------------------------------------------
+- Шаблон меню с фиксированным порядком
+- register_menu(menu_name, plugin_name) — плагин хочет в меню
+- unregister_menu(menu_name, plugin_name) — плагин уходит
+- get_menu(menu_name) → QMenu
+- reference counting: показать при first register, скрыть при last unregister
+- Сигналы: menu_registered(str), menu_unregistered(str)
+
+Шаг 2: Интеграция в EditorApp
+-------------------------------
+- create_menu_bar() создаёт MenuService вместо ручного addMenu()
+- File и Settings видимы всегда
+- Edit и Tools скрыты, управляются через register/unregister
+
+Шаг 3: Изменение PluginUI
+---------------------------
+- build_menu() использует menu_service.get_menu() вместо addMenu()
+- PluginUI вызывает menu_service.register_menu() при добавлении
+- remove_ui() вызывает menu_service.unregister_menu()
+- PluginUI продолжает создавать QAction и заполнять QMenu
+
+Шаг 4: Shortcuts и tooltips
+-----------------------------
+- Стандартные shortcuts (New=Ctrl+N, Open=Ctrl+O, Save=Ctrl+S, Close=Ctrl+W)
+  в шаблоне MenuService или в EditorApp.create_menu_bar()
+- Плагины добавляют свои shortcuts через plugin.actions
+
+Шаг 5: Основной тулбар
+------------------------
+- MenuService управляет QToolBar по аналогичному принципу
+- Шаблон тулбара: New, Open, Save, |, Undo, Redo, |, Cut, Copy, Paste
+- Плагины добавляют кнопки через register_toolbar()
+
+Файлы
+------
+- core/services/menu_service.py    — новый
+- core/editor_app.py               — правки
+- plugins_service/views/plugin_ui.py — правки
+- tests/services/test_menu_service.py — новый
+
+Статус
+-------
+[x] Шаг 1: MenuService
+[x] Шаг 2: Интеграция в EditorApp
+[x] Шаг 3: Изменение PluginUI
+[x] Шаг 4: Shortcuts
+[x] Шаг 5: Тулбар

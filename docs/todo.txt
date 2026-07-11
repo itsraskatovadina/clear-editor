@@ -1,2 +1,1 @@
-B) Подключить plugin_error к MsgPanel (показывать ошибки загрузки пользователю).
-C) Реализовать plugin_loaded и подключить к MsgPanel/plugin_manager.
+План меню и тулбаров — выполнен (plan_menu_service.txt)

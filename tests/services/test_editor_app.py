@@ -17,6 +17,14 @@ from core.editor_app import EditorApp
 app = QApplication(sys.argv)
 
 
+def _find_menu_by_title(menu_bar, title):
+    for action in menu_bar.actions():
+        menu = action.menu()
+        if menu and menu.title() == title:
+            return menu
+    return None
+
+
 def test_file_menu_actions():
     config_mock = MagicMock()
     theme_mock = MagicMock()
@@ -29,9 +37,8 @@ def test_file_menu_actions():
          patch.object(editor.file_tab_srv, "open_file") as mock_open:
         editor.create_menu_bar(menu_bar)
 
-    file_menu = menu_bar.actions()[0].menu()
+    file_menu = _find_menu_by_title(menu_bar, "File")
     assert file_menu is not None
-    assert file_menu.title() == "File"
 
     actions = file_menu.actions()
     assert actions[0].text() == "New"
@@ -85,9 +92,8 @@ def test_settings_menu_actions():
          patch.object(editor, "zoom_out") as mock_zo:
         editor.create_menu_bar(menu_bar)
 
-    settings_menu = menu_bar.actions()[1].menu()
+    settings_menu = _find_menu_by_title(menu_bar, "Settings")
     assert settings_menu is not None
-    assert settings_menu.title() == "Settings"
 
     actions = settings_menu.actions()
     assert actions[0].text() == "Zoom In"

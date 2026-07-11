@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel, QAction
+from PyQt5.QtWidgets import QMainWindow, QStatusBar, QSplitter, QLabel, QAction, QToolBar, QStyle
 from PyQt5.QtGui import QFont, QIcon, QKeySequence
 from PyQt5.QtCore import Qt, QPoint, QSize, pyqtSignal
 
@@ -13,6 +13,7 @@ from core.views.msg_panel_view import MsgPanelView
 from core.services.message_srv import MessageSrv
 from core.services.config_service import ConfigService, ConfigError
 from core.services.theme_service import ThemeService
+from core.services.menu_service import MenuService
 
 
 class EditorApp(QMainWindow):
@@ -159,29 +160,89 @@ class EditorApp(QMainWindow):
         return self.menuBar()
 
     def create_menu_bar(self, menu_bar):
-        file_menu = menu_bar.addMenu("File")
-        file_menu.addAction("New", self.file_tab_srv.new_tab)
-        file_menu.addAction("Open", self.file_tab_srv.open_file)
-        file_menu.addAction("Save", lambda: self.file_tab_srv.current_tab_process("save"))
-        file_menu.addAction("Save As", lambda: self.file_tab_srv.current_tab_process("save_as"))
-        file_menu.addAction("Close", lambda: self.file_tab_srv.current_tab_process("close"))
+        self.menu_service = MenuService(menu_bar, parent=self)
+
+        file_menu = self.menu_service.get_menu("File")
+
+        action_new = file_menu.addAction("New")
+        action_new.setShortcut(QKeySequence.New)
+        action_new.triggered.connect(self.file_tab_srv.new_tab)
+
+        action_open = file_menu.addAction("Open")
+        action_open.setShortcut(QKeySequence.Open)
+        action_open.triggered.connect(self.file_tab_srv.open_file)
+
+        action_save = file_menu.addAction("Save")
+        action_save.setShortcut(QKeySequence.Save)
+        action_save.triggered.connect(
+            lambda: self.file_tab_srv.current_tab_process("save")
+        )
+
+        action_save_as = file_menu.addAction("Save As")
+        action_save_as.setShortcut(QKeySequence("Ctrl+Shift+S"))
+        action_save_as.triggered.connect(
+            lambda: self.file_tab_srv.current_tab_process("save_as")
+        )
+
+        action_close = file_menu.addAction("Close")
+        action_close.setShortcut(QKeySequence("Ctrl+W"))
+        action_close.triggered.connect(
+            lambda: self.file_tab_srv.current_tab_process("close")
+        )
+
         file_menu.addSeparator()
-        file_menu.addAction("Reload", lambda: self.file_tab_srv.current_tab_process("reload"))
+
+        action_reload = file_menu.addAction("Reload")
+        action_reload.setShortcut(QKeySequence("Ctrl+R"))
+        action_reload.triggered.connect(
+            lambda: self.file_tab_srv.current_tab_process("reload")
+        )
+
         file_menu.addSeparator()
-        file_menu.addAction("Property", lambda: self.file_tab_srv.current_tab_process("property"))
+
+        action_property = file_menu.addAction("Property")
+        action_property.setShortcut(QKeySequence("Ctrl+I"))
+        action_property.triggered.connect(
+            lambda: self.file_tab_srv.current_tab_process("property")
+        )
+
         file_menu.addSeparator()
         self.recent_files_menu = file_menu.addMenu("Recent files")
 
         self.recent_files_changed.connect(self._update_recent_files_menu)
         self._update_recent_files_menu()
 
-        settings_menu = menu_bar.addMenu("Settings")
-        action_zoom_in = settings_menu.addAction("Zoom In", self.zoom_in)
+        settings_menu = self.menu_service.get_menu("Settings")
+        action_zoom_in = settings_menu.addAction("Zoom In")
         action_zoom_in.setShortcut(QKeySequence.ZoomIn)
-        action_zoom_out = settings_menu.addAction("Zoom Out", self.zoom_out)
+        action_zoom_in.triggered.connect(self.zoom_in)
+        action_zoom_out = settings_menu.addAction("Zoom Out")
         action_zoom_out.setShortcut(QKeySequence.ZoomOut)
+        action_zoom_out.triggered.connect(self.zoom_out)
         settings_menu.addSeparator()
         self.plugins_action = settings_menu.addAction("Plugins")
+
+        self._create_main_toolbar()
+
+    def _create_main_toolbar(self):
+        toolbar = QToolBar("Main", self)
+        self.addToolBar(toolbar)
+
+        action_new = toolbar.addAction(
+            self.style().standardIcon(QStyle.SP_FileIcon), "New"
+        )
+        action_new.setShortcut(QKeySequence.New)
+        action_new.setStatusTip("New file")
+        action_new.triggered.connect(self.file_tab_srv.new_tab)
+
+        action_save = toolbar.addAction(
+            self.style().standardIcon(QStyle.SP_DialogSaveButton), "Save"
+        )
+        action_save.setShortcut(QKeySequence.Save)
+        action_save.setStatusTip("Save file")
+        action_save.triggered.connect(
+            lambda: self.file_tab_srv.current_tab_process("save")
+        )
 
     def create_status_bar(self):
         self.statusBar = QStatusBar()

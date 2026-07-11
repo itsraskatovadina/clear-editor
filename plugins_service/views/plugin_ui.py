@@ -41,17 +41,18 @@ class PluginUI(QObject):
 
     def build_menu(self, editor, name: str, plugin: PluginBase):
         ui_objects = []
+        registered_menus = []
         for entry in plugin.menu_items:
             if entry.get("kind") == "menu":
                 text = entry["text"]
-                menu = editor.get_menu_bar().findChild(QMenu, text)
-                if not menu:
-                    menu = editor.get_menu_bar().addMenu(text)
-                    menu.setObjectName(text)
+                menu = editor.menu_service.get_menu(text)
+                if menu:
+                    editor.menu_service.register_menu(text, name)
+                    registered_menus.append(text)
                 items = entry.get("content", [])
                 created = self._create_ui_items(menu, items, plugin)
                 ui_objects.extend(created)
-        return ui_objects
+        return ui_objects, registered_menus
 
     def build_toolbar(self, editor, name: str, plugin: PluginBase) -> List:
         ui_objects = []
@@ -86,7 +87,7 @@ class PluginUI(QObject):
 
     def build_all(self, editor, name: str, plugin: PluginBase):
         labels = self.build_status_fields(editor, plugin)
-        menu_ui = self.build_menu(editor, name, plugin)
+        menu_ui, registered_menus = self.build_menu(editor, name, plugin)
         toolbar_ui, toolbars = self.build_toolbar(editor, name, plugin)
         docks = self.build_dock(editor, plugin)
         menu_ui.extend(toolbar_ui)
@@ -94,6 +95,7 @@ class PluginUI(QObject):
         state = {
             "labels": labels,
             "menu_ui_objects": menu_ui,
+            "registered_menus": registered_menus,
             "toolbars": toolbars,
             "docks": docks,
         }
@@ -105,6 +107,8 @@ class PluginUI(QObject):
         state = registry.remove_ui_state(name)
         if not state:
             return
+        for menu_name in state.get("registered_menus", []):
+            editor.menu_service.unregister_menu(menu_name, name)
         for dock in state["docks"]:
             editor.removeDockWidget(dock)
             dock.deleteLater()
