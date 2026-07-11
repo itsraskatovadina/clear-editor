@@ -3,7 +3,8 @@
 
 1. НАЗНАЧЕНИЕ
 ---------------
-Плагин для валидации HTML-кода и генерации оглавления по заголовкам.
+Плагин для валидации HTML-кода, генерации оглавления по заголовкам
+и проверки внутренних ссылок.
 Может работать как с текущим редактором (вызов из меню), так и с файлами
 на диске (межплагинный вызов из iclear).
 
@@ -23,6 +24,7 @@
   actions = [
     {"id": "gen_content_list", "text": "Generate content list", "callback": "gen_content_list"},
     {"id": "validate_html",    "text": "Validate HTML",         "callback": "validate_html"},
+    {"id": "check_links",      "text": "Check internal links",  "callback": "check_internal_links"},
   ]
 
   menu_items = [
@@ -30,6 +32,7 @@
       index_actions["gen_content_list"],
       {"kind": "separator"},
       index_actions["validate_html"],
+      index_actions["check_links"],
     ]}
   ]
 
@@ -99,3 +102,17 @@
   - Режим B (file_path задан) разработан специально для этого сценария.
   - Вызов из меню (режим A) остаётся без изменений для ручной валидации
     текущего файла.
+
+4.4. check_internal_links()
+
+  Проверка внутренних ссылок в текущем файле.
+  Ищет все <a href="#id"> и проверяет наличие элемента с id="id" в документе.
+
+  Алгоритм:
+    1. Собрать все id="..." из документа в множество ids_found
+    2. Найти все <a href="#..."> ссылки
+    3. Для каждой ссылки: если #id нет в ids_found — ошибка
+    4. Если ошибок нет: self._post(f"All internal links OK in {fname}.")
+    5. Если есть ошибки: открывает ValErrorsDialog со списком сломанных ссылок
+
+  Формат ошибок: "Row X: No element with id=\"...\" found"

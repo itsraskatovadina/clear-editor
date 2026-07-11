@@ -79,6 +79,13 @@ class HTMLToolsPlugin(PluginBase):
             "callback": "gen_content_list",
         },
         {"id": "validate_html", "text": "Validate HTML", "callback": "validate_html"},
+        {
+            "id": "check_links",
+            "text": "Check internal links",
+            "tooltip": "Check that all &lt;a href=\"#id\"&gt; have matching id",
+            "statustip": "Check that all anchor links have matching id attributes",
+            "callback": "check_internal_links",
+        },
     ]
 
     index_actions = {}
@@ -94,6 +101,7 @@ class HTMLToolsPlugin(PluginBase):
                 index_actions["gen_content_list"],
                 {"kind": "separator"},
                 index_actions["validate_html"],
+                index_actions["check_links"],
             ],
         }
     ]
@@ -280,4 +288,32 @@ class HTMLToolsPlugin(PluginBase):
         else:
             dialog = ValErrorsDialog(errors, editor, self.validate_html, self._editor)
             self._val_dialog = dialog
+            dialog.show()
+
+    def check_internal_links(self):
+        editor = self._editor.current_editor()
+        if editor is None:
+            return
+        text = editor.toPlainText()
+        fname = self._editor.current_file_name()
+
+        ids_found = set()
+        id_pattern = re.compile(r'\bid\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
+        for m in id_pattern.finditer(text):
+            ids_found.add(m.group(1))
+
+        link_pattern = re.compile(r'<a\s[^>]*href\s*=\s*["\']#([^"\']+)["\']', re.IGNORECASE)
+        broken = []
+        for m in link_pattern.finditer(text):
+            anchor = m.group(1)
+            if anchor not in ids_found:
+                pos = m.start()
+                line_num = text[:pos].count("\n") + 1
+                broken.append((line_num, f'No element with id="{anchor}" found'))
+
+        if not broken:
+            self._post(f"All internal links OK in {fname}.")
+        else:
+            dialog = ValErrorsDialog(broken, editor, self.check_internal_links, self._editor)
+            self._links_dialog = dialog
             dialog.show()
