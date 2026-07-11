@@ -5,7 +5,8 @@
 ---------------
 Плагин для обработки выделенного текста в редакторе.
 Предоставляет набор действий: удаление пустых строк, капитализация,
-замена HTML-сущностей, оборачивание в теги, создание списков и таблиц.
+замена HTML-сущностей, оборачивание в теги, создание списков и таблиц,
+компактизация HTML-таблиц.
 
 2. ЖИЗНЕННЫЙ ЦИКЛ
 ------------------
@@ -30,6 +31,7 @@
     {"id": "make_list",        "text": "Make list",  "short_text": "<ul>", "callback": "make_list_in_selected"},
     {"id": "make_nested_list", "text": "Nested list", "short_text": "<ul+>", "callback": "make_nested_list_in_selected"},
     {"id": "make_table",       "text": "Make table",            "callback": "make_table_in_selected"},
+    {"id": "compact_table",    "text": "Compact table",         "callback": "compact_html_table_in_selected"},
   ]
 
   menu_items:
@@ -43,7 +45,8 @@
     ├── ─────────
     ├── Make list
     ├── Nested list
-    └── Make table
+    ├── Make table
+    └── Compact table
 
   toolbar_items: Wrap <p>, Wrap <b>, Make list, Nested list
 
@@ -133,6 +136,23 @@
             <td>cell2</td>
         </tr>
     </table>
+
+5.10. compact_html_table_in_selected()
+
+  Компактизирует HTML-таблицу: каждый <tr> на одной строке, добавляет <tbody>.
+  Формат результата:
+    <table><tbody>
+    <tr><td>1</td><td>2</td></tr>
+    <tr><td>3</td><td>4</td></tr>
+    </tbody></table>
+
+  Валидация:
+    - Если нет <table> — ошибка "Selection does not contain a <table> tag"
+    - Если нет </table> — ошибка "Selection is missing </table> tag"
+    - Если нет <tr> — ошибка "No <tr> rows found in table"
+
+  Ошибки выводятся в msg_panel через msg_srv.post_message().
+  Если выделение пустое — ничего не делает (return).
 
 6. ТУЛБАР
 ----------

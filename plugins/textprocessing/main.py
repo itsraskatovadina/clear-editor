@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 
+import re
+
 from PyQt5.QtGui import QTextCursor
 
 from plugins_service.plugin_base import PluginBase
@@ -77,6 +79,13 @@ class TextProcessingPlugin(PluginBase):
             "statustip": "Convert tab-separated text to <table>",
             "callback": "make_table_in_selected",
         },
+        {
+            "id": "compact_table",
+            "text": "Compact table",
+            "tooltip": "Compact HTML table: one <tr> per line, add <tbody>",
+            "statustip": "Compact HTML table: one <tr> per line, add <tbody>",
+            "callback": "compact_html_table_in_selected",
+        },
     ]
 
     index_actions = {}
@@ -99,6 +108,7 @@ class TextProcessingPlugin(PluginBase):
                 index_actions["make_list"],
                 index_actions["make_nested_list"],
                 index_actions["make_table"],
+                index_actions["compact_table"],
             ],
         }
     ]
@@ -257,3 +267,48 @@ class TextProcessingPlugin(PluginBase):
             return f"<table>\n{body}\n    </table>"
 
         self.selectedTextProcessing(to_table)
+
+    def compact_html_table_in_selected(self):
+        def compact(text):
+            if not re.search(r"<table[\s>]", text, re.IGNORECASE):
+                raise ValueError("Selection does not contain a <table> tag")
+            if not re.search(r"</table>", text, re.IGNORECASE):
+                raise ValueError("Selection is missing </table> tag")
+
+            rows = re.findall(r"<tr[\s>].*?</tr>", text, re.IGNORECASE | re.DOTALL)
+            if not rows:
+                raise ValueError("No <tr> rows found in table")
+
+            compacted_rows = []
+            for row in rows:
+                one_line = re.sub(r"\s+", " ", row.strip())
+                one_line = re.sub(r">\s+<", "><", one_line)
+                compacted_rows.append(one_line)
+
+            body = "\n".join(compacted_rows)
+            return f"<table><tbody>\n{body}\n</tbody></table>"
+
+        editor_widget = self._editor.current_editor()
+        cursor = editor_widget.textCursor()
+        if not cursor.hasSelection():
+            return
+
+        selected_text = cursor.selectedText().replace("\u2029", "\n")
+        try:
+            out_text = compact(selected_text)
+        except ValueError as e:
+            self._editor.msg_srv.post_message(
+                str(e), "TextProcessing", "error"
+            )
+            return
+
+        cursor.beginEditBlock()
+        cursor.removeSelectedText()
+        cursor.insertText(out_text)
+        cursor.endEditBlock()
+
+        cursor.setPosition(cursor.position() - len(out_text))
+        cursor.setPosition(
+            cursor.position() + len(out_text), QTextCursor.MoveMode.KeepAnchor
+        )
+        editor_widget.setTextCursor(cursor)
