@@ -232,6 +232,7 @@ class EditorApp(QMainWindow):
         action_zoom_out.triggered.connect(self.zoom_out)
         settings_menu.addSeparator()
         self.plugins_action = settings_menu.addAction("Plugins")
+        self.plugins_action.setStatusTip("Enable or disable plugins")
 
         self._create_main_toolbar()
 
