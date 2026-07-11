@@ -62,6 +62,7 @@ class PluginLoader(QObject):
             return None
 
         plugin = plugin_class()
+        self.plugin_loaded.emit(name)
         return plugin
 
     def deactivate(self, name: str, registry: PluginRegistry):

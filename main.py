@@ -63,6 +63,17 @@ def main():
     settings = editor_app.settings
     plugin_manager.discover()
 
+    plugin_loader.plugin_error.connect(
+        lambda name, err: editor_app.msg_srv.post_message(
+            f"Plugin {name}: {err}", "PluginLoader", "error"
+        )
+    )
+    plugin_loader.plugin_loaded.connect(
+        lambda name: editor_app.msg_srv.post_message(
+            f"Plugin {name} loaded", "PluginLoader", "info"
+        )
+    )
+
     # --- Load active plugins ---
     loaded = settings.value("active_plugins", [])
     if loaded is None:
