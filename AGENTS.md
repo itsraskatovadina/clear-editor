@@ -50,9 +50,8 @@ Built-in plugins: `wordcount` (status-bar word counter), `textprocessing` (Text 
 **No test framework.** Model tests run with assertions and print pass/fail. Visual tests use standalone PyQt windows.
 
 ```bash
-python3 tests/test_document.py         # Document model — auto-assert (needs display)
-python3 tests/test_file_tab_model.py   # FileTabModel — auto-assert (pure Python, no Qt)
-python3 tests/test_file_tab_srv.py     # FileTabSrv — visual test window
+./run_tests.sh              # run all tests (default 10s timeout per test)
+./run_tests.sh 30           # custom timeout
 ```
 Run from project root: `PYTHONPATH=. python3 tests/…`
 
