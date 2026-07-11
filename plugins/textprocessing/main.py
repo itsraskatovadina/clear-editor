@@ -1,5 +1,7 @@
 #! /usr/bin/env python3
 
+import json
+import os
 import re
 
 from PyQt5.QtGui import QTextCursor
@@ -128,9 +130,52 @@ class TextProcessingPlugin(PluginBase):
 
     def on_load(self, editor):
         self._editor = editor
+        self._templates = self._load_templates()
+        self._build_template_menu()
 
     def on_unload(self):
         self._editor = None
+        self._templates = {}
+
+    def _load_templates(self):
+        templates_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "resources", "templates.json"
+        )
+        try:
+            with open(templates_path, encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
+    def _build_template_menu(self):
+        if not self._templates:
+            return
+        template_items = []
+        for name, text in self._templates.items():
+            template_items.append({
+                "kind": "action",
+                "id": f"template_{name}",
+                "text": name.replace("_", " ").title(),
+                "tooltip": f"Insert template: {text[:30]}...",
+                "statustip": f"Insert template: {name}",
+                "callback": lambda checked, t=text: self._insert_template(t),
+            })
+        template_menu = {
+            "kind": "menu",
+            "text": "Insert template",
+            "content": template_items,
+        }
+        self.menu_items[0]["content"].append({"kind": "separator"})
+        self.menu_items[0]["content"].append(template_menu)
+
+    def _insert_template(self, template_text):
+        editor_widget = self._editor.current_editor()
+        cursor = editor_widget.textCursor()
+        selected_text = cursor.selectedText().replace("\u2029", "\n") if cursor.hasSelection() else ""
+        result = template_text.replace("%%", selected_text if selected_text else " ")
+        cursor.beginEditBlock()
+        cursor.insertText(result)
+        cursor.endEditBlock()
 
     def selectedTextProcessing(self, func, **kwargs):
         editor_widget = self._editor.current_editor()

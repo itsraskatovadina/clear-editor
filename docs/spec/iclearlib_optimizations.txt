@@ -1,0 +1,146 @@
+АНАЛИЗ iclearlib.py — Предложения по оптимизации
+=================================================
+
+1. БАГИ
+-------
+
+1.1. travers_list_accum — mutable default argument  [ВЫПОЛЕНО]
+
+  Было: results=[] создаётся ОДИН раз при загрузке модуля.
+  Все вызовы разделяют один и тот же список.
+
+  Стало: results=None + if results is None: results = []
+
+1.2. check_map — опечатка outtype="err"  [ВЫПОЛЕНО]
+
+  Tools.output(message, outtype="err") — такого типа нет.
+  "err" печатает без цвета.
+
+  Стало: outtype="error"
+
+2. СТИЛЬ И ЧИТАЕМОСТЬ
+----------------------
+
+2.1. Упрощение однострочных методов
+
+  is_root():    return self.lvl == 0         (было: if/return True/False)
+  is_level(l):  return l in Iclear.levels_index  (было: get + if/else)
+  isempty_node: return getattr(self, level) is None  (было: if/return True/False)
+
+2.2. f-строки вместо "".join() в info()
+
+  ANod.info() (line 22-33):
+    return f"{self.nid}; par: {self.parent}; lvl: {self.lvl}; subs: {self.children}"
+
+  INode.finfo(), IHost.finfo() — аналогично.
+
+2.3. ANode.__init__ — list() → []
+
+  self.children = list()  →  self.children = []
+
+2.4. Дублирование циклической проверки в set_parent / add_child
+
+  Идентичные проверки:
+    (self.parent != node) and (self != node) and (node not in self.children)
+
+  Вынести в _is_valid_connection(node) или объединить set_parent/add_child.
+
+3. АРХИТЕКТУРА
+--------------
+
+3.1. NodesNav.set_dict — глубокая вложенность if/else (5 уровней)
+
+  Линейный поиск от site до page:
+    site → top → man → cat → page
+
+  Замена на цикл:
+    levels = ["site", "top", "man", "cat", "page"]
+    parent = self.host
+    for level in levels:
+        nid = str(nodedict.get(level, "")).strip()
+        if nid in ("", None):
+            break
+        child = parent.get_child(nid)
+        if child is None:
+            break
+        setattr(self, level, child)
+        parent = child
+
+3.2. @staticmethod  [ВЫПОЛЕНО]
+
+  Все методы Iclear и Service добавлены @staticmethod.
+
+3.3. IHost.full_path() — возвращает str | False
+
+  Inconsistent return type: str если файл есть, False если нет.
+  Лучше всегда возвращать путь, а проверку existence делать
+  в вызывающем коде. Сейчас check_exists_file() печатает
+  ошибку в консоль при каждом вызове — это шум при навигации.
+
+3.4. full_path() — дублирование паттерна
+
+  IHost, ISite, IMan — идентичный паттерн:
+    full_path = os.path.join(...)
+    if Tools.check_exists_file(full_path):
+        return full_path
+    else:
+        return False
+
+  Вынести в базовый класс или утилиту.
+
+4. ПРОИЗВОДИТЕЛЬНОСТЬ
+----------------------
+
+4.1. find_child — рекурсия
+
+  Рекурсивный обход всего поддерева. Для глубоких деревьев —
+  риск RecursionError. Можно заменить на итеративный BFS/DFS.
+
+4.2. travers — рекурсия
+
+  Аналогично. Для больших деревьев — итеративный вариант.
+
+4.3. check_map — повторный walk
+
+  diff_map_by_dir делает os.walk() для каждого cat отдельно.
+  Можно один раз пройти всё дерево.
+
+5. МЕЛКОЕ
+----------
+
+5.1. gen_root_indexphp — мёртвый код
+
+  extendstr собирается, а потом обнуляется:
+    extendstr = "  ("
+    for cat in man.children:
+        extendstr += cat.nid + ", "
+    extendstr += ")"
+    extendstr = ""  ← перезапись
+
+5.2. shutil import внутри diff_map_by_dir
+
+  Лучше импортировать в начале файла.
+
+5.3. Лишние комментарии # print(...)
+
+  Много закомментированных print — удалить.
+
+6. ПРИОРИТЕТЫ
+--------------
+
+  Критично:
+    [1.1] travers_list_accum — баг  [ВЫПОЛЕНО]
+    [1.2] check_map outtype — баг  [ВЫПОЛЕНО]
+
+  Важно:
+    [3.1] set_dict refactoring — читаемость
+    [3.2] @staticmethod — корректность  [ВЫПОЛЕНО]
+    [3.3] full_path return type — архитектура
+
+  Желательно:
+    [2.1-2.4] Упрощения стиля
+    [3.4] full_path дублирование паттерна
+    [5.1-5.3] Мелочи
+
+  Опционально:
+    [4.1-4.3] Оптимизация производительности (актуально при больших сайтах)
