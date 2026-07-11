@@ -107,6 +107,6 @@
 
 9. Проверка
    - main.py → редактор запускается
-   - плагины из settings загружаются (TextProcessing, HTMLProcessing, iclear)
+   - плагины из settings загружаются (TextProcessing, HTMLTools, iclear)
    - PluginWidget открывается, плагины вкл/выкл
-   - iclear вызывает validate_html из HTMLProcessing (проверка межплагинной связи)
+   - iclear вызывает validate_html из HTMLTools (проверка межплагинной связи)

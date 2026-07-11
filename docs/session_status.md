@@ -49,6 +49,6 @@
 | `docs/spec/plugins_service_spec.txt` | Спецификация PluginManager/Registry/Loader/UI |
 | `docs/spec/file_tab_service_spec.txt` | Спецификация FileTabSrv |
 | `docs/spec/plugins/iclear_spec.txt` | Спецификация плагина iclear |
-| `docs/spec/plugins/htmlprocessing_spec.txt` | Спецификация HTMLProcessing |
+| `docs/spec/plugins/htmltools_spec.txt` | Спецификация HTMLTools |
 | `docs/spec/plugins/word_count_spec.txt` | Спецификация WordCount |
 | `docs/todo.txt` | Текущие задачи |

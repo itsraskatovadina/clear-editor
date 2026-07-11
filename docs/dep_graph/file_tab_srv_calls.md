@@ -25,7 +25,7 @@
 | **`_on_tab_moved(from, to)`** | `_model.move_doc(from, to)`, <br>`_model.set_current(_view.currentIndex())` | сигнал `_view.tab_moved` (перетаскивание вкладки) |
 | **`_on_current_changed(index)`** | `_view.editor_at(index)`, `ew.set_focus()`, <br>`_model.set_current(index)`, `_model.at(index)`, <br>`editor_state_changed.emit(...)` | сигнал `_view.current_changed` (переключение вкладки) |
 | **`_on_modification_changed(doc)`** | `_model.index_of_doc(doc)`, `_view.set_tab(...)`, <br>`editor_state_changed.emit(...)` | сигнал `ew.modification_changed` (изменение текста) |
-| **`current_editor()`** | `current_widget()`, `widget.editor` | `EditorApp.current_editor`, <br>плагины: `wordcount`, `htmlprocessing`, `textprocessing` |
+| **`current_editor()`** | `current_widget()`, `widget.editor` | `EditorApp.current_editor`, <br>плагины: `wordcount`, `htmltools`, `textprocessing` |
 | **`current_widget()`** | `_view.currentIndex()`, `_view.editor_at(index)` | `current_tab_process`, `current_editor` |
 | **`current_document()`** | `_model.current()` | `EditorApp.current_file_name`, <br>плагины: `wordcount`, `iclear`; <br>тесты |
 | **`tab_count()`** | `_model.count` | `EditorApp.set_tab_panel`, <br>плагин `wordcount`; <br>тесты |

@@ -177,13 +177,13 @@ FileTabSrv испускает `editor_state_changed(title, full_title, mod_label
 ### После iclear: межплагинная связь
 
 master_plan (Rec 6, шаг 5):
-iclear → htmlprocessing.validate_html — проверка каждого файла из списка.
+iclear → htmltools.validate_html — проверка каждого файла из списка.
 
 После рефакторинга iclear это становится возможным:
-- `plugin_manager.get_active("htmlprocessing")` возвращает экземпляр HTMLProcessingPlugin
+- `plugin_manager.get_active("htmltools")` возвращает экземпляр HTMLToolsPlugin
 - вызов `html_plugin.validate_html(file_path)` — результат в Msg/View
 
 Порядок:
 1. Рефакторинг iclear plugin
 2. Проверка межплагинной связи (ручная)
-3. Если надо — тест iclear → htmlprocessing.validate_html
+3. Если надо — тест iclear → htmltools.validate_html

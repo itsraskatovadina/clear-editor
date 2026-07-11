@@ -85,15 +85,15 @@ FileTabSrv испускает editor_state_changed(title, full_title, mod_label,
 3. ПОСЛЕ ICLEAR: межплагинная связь
 --------------------------------------------------------------
 
-iclear → htmlprocessing.validate_html — проверка каждого файла из списка.
+iclear → htmltools.validate_html — проверка каждого файла из списка.
 
-plugin_manager.get_active("htmlprocessing") → экземпляр HTMLProcessingPlugin
+plugin_manager.get_active("htmltools") → экземпляр HTMLToolsPlugin
 вызов html_plugin.validate_html(file_path) → результат в Msg/View
 
 Порядок:
   1. Рефакторинг iclear
   2. Ручная проверка межплагинной связи
-  3. Если надо — тест iclear → htmlprocessing.validate_html
+  3. Если надо — тест iclear → htmltools.validate_html
 
 --------------------------------------------------------------
 4. ДОРАБОТКИ ПЛАГИНОВ
@@ -101,9 +101,9 @@ plugin_manager.get_active("htmlprocessing") → экземпляр HTMLProcessin
 
 Источник: docs/todo.txt (строки 68-89)
 
-### 4.1. HTMLProcessing → HTMLTools, перенос в Tools
+### 4.1. HTMLTools — перенос в Tools (выполнено)
 
-Переименовать плагин 'HTMLProcessing' в 'HTMLTools', пункты меню — в меню Tools.
+Плагин переименован из HTMLProcessing в HTMLTools, пункты меню в меню Tools.
 
 ### 4.2. TextProcessing — Wrap произвольным тегом
 

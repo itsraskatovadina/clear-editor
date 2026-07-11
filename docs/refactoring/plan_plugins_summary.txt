@@ -9,13 +9,13 @@
 - EditorApp сервисы вынесены ✅
 - iclear → FileTabSrv API (editor_state_changed) ✅
 - iclear спецификация создана ✅
-- HTMLProcessing спецификация создана ✅
+- HTMLTools спецификация создана ✅
+- HTMLProcessing → HTMLTools (выполнено) ✅
 
 Что на очереди (после v3.0):
-1. iclear → межплагинная связь (validate_html из htmlprocessing)
-2. HTMLProcessing → HTMLTools, перенос в Tools
-3. TextProcessing — Wrap произвольным тегом
-4. TextProcessing — Вставка шаблонов из templates.json
-5. Настройка видимости тулбаров и панелей
+1. iclear → межплагинная связь (validate_html из htmltools)
+2. TextProcessing — Wrap произвольным тегом
+3. TextProcessing — Вставка шаблонов из templates.json
+4. Настройка видимости тулбаров и панелей
 
 Проблема дублирования меню: решена через find_menu_by_text (поиск существующего меню по тексту).

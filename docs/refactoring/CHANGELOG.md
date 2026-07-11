@@ -8,7 +8,7 @@
 - **HTMLEditor:** extracted `TagCompletionsModel` for autocompletion data
 - **main.py restructured:** DI assembly, section headers, renamed plugin vars
 - **iclear plugin:** migrated from `tab_panel` API to `file_tab_srv.editor_state_changed`
-- **Specifications:** `ConfigService`, `MessageSrv`, `iclear`, `HTMLProcessing` — dedicated spec files
+- **Specifications:** `ConfigService`, `MessageSrv`, `iclear`, `HTMLTools` — dedicated spec files
 - **Tests:** 11 ConfigService tests, MessageSrv tests, PluginLoader tests, PluginRegistry tests
 - **Session status** tracking added (`docs/session_status.md`, `scripts/status.sh`)
 - **AGENTS.md:** added project conventions, test commands, session workflow
@@ -31,7 +31,7 @@
 
 - **Plugin system refactored:** actions/index_actions, nested menus with kind/content, toolbar reuse
 - **EditorApp:** menu creation moved from main.py to EditorApp
-- **HTMLProcessing** plugin added
+- **HTMLTools** plugin added
 - **iClear** plugin added
 - **Plugins:** TextProcessing extended with HTML operations
 - **Specifications:** restructured into `en/` and `ru/` locales

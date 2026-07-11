@@ -255,11 +255,11 @@ NodesNav хранит текущий путь: site → top → man → cat → 
 7. МЕЖПЛАГИННАЯ СВЯЗЬ
 -----------------------
 
-7.1. Зависимость: HTMLProcessing
-  - Плагин iclear вызывает htmlprocessing.validate_html(file_path) для валидации HTML
-  - Плагин HTMLProcessing должен быть активирован для работы функции валидации
+7.1. Зависимость: HTMLTools
+  - Плагин iclear вызывает htmltools.validate_html(file_path) для валидации HTML
+  - Плагин HTMLTools должен быть активирован для работы функции валидации
   - Пункт меню "validate html" создаётся динамически: появляется только если
-    HTMLProcessing активен (проверка через editor.plugin_manager.get_active("htmlprocessing")
+    HTMLTools активен (проверка через editor.plugin_manager.get_active("htmltools")
     при каждом открытии меню)
 
 7.2. Метод _validate_all_pages()

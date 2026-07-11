@@ -50,13 +50,13 @@ def test_unregister_hides_menu():
     svc = MenuService(menu_bar)
 
     svc.register_menu("Edit", "textprocessing")
-    svc.register_menu("Edit", "htmlprocessing")
+    svc.register_menu("Edit", "htmltools")
 
     svc.unregister_menu("Edit", "textprocessing")
     edit_menu = svc.get_menu("Edit")
     assert edit_menu.menuAction().isVisible()
 
-    svc.unregister_menu("Edit", "htmlprocessing")
+    svc.unregister_menu("Edit", "htmltools")
     assert not edit_menu.menuAction().isVisible()
 
     print("  OK unregister_hides_menu")

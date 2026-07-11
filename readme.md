@@ -15,7 +15,7 @@
 ## Возможности
 
 - Вкладки — открывайте, редактируйте и сохраняйте несколько файлов
-- Система плагинов — wordcount, textprocessing, iclear, htmlprocessing
+- Система плагинов — wordcount, textprocessing, iclear, htmltools
 - Сохранение сессии — восстановление open/recent файлов, геометрии окна
 - Панель сообщений — перехват stderr + handled-ошибки (Err/Msg/View)
 - Подсветка синтаксиса HTML и автодополнение тегов
@@ -66,7 +66,7 @@ main.py → EditorApp (QMainWindow-оркестратор)
 | `core/models/` | Модели данных (Document, FileTabModel, MessageModel, TagCompletionsModel) |
 | `core/views/` | Qt-виджеты (FileTabView, EditorWidget, MsgPanelView, HTMLEditor) |
 | `core/services/` | Сервисы (FileTabSrv, MessageSrv, ConfigService, ThemeService) |
-| `plugins/` | Плагины (wordcount, textprocessing, iclear, htmlprocessing) |
+| `plugins/` | Плагины (wordcount, textprocessing, iclear, htmltools) |
 | `plugins_service/` | Система плагинов (Registry, Loader, UI) |
 | `tests/` | Модульные и интеграционные тесты |
 | `docs/` | Документация, спецификации, планы рефакторинга |
@@ -80,7 +80,7 @@ main.py → EditorApp (QMainWindow-оркестратор)
 - **wordcount** — счётчик слов в статус-баре
 - **textprocessing** — меню "Текст": удалить пустые строки, capitalize first
 - **iclear** — навигатор по файловой структуре PHP-сайта
-- **htmlprocessing** — валидация HTML, генерация оглавления
+- **htmltools** — валидация HTML, генерация оглавления
 
 ---
 

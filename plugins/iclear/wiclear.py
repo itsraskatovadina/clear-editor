@@ -269,10 +269,10 @@ class IclearWidget(QWidget):
         if not self._editor or not self._editor.plugin_manager:
             return
 
-        hp = self._editor.plugin_manager.get_active("htmlprocessing")
+        hp = self._editor.plugin_manager.get_active("htmltools")
         if not hp:
             self._editor.msg_srv.post_message(
-                "Activate HTMLProcessing plugin first", "iclear", "warning"
+                "Activate HTMLTools plugin first", "iclear", "warning"
             )
             return
 
@@ -332,7 +332,7 @@ class IclearWidget(QWidget):
     def _update_validate_action(self):
         hp = None
         if self._editor and self._editor.plugin_manager:
-            hp = self._editor.plugin_manager.get_active("htmlprocessing")
+            hp = self._editor.plugin_manager.get_active("htmltools")
 
         if hp and self._validate_action is None:
             self._validate_action = QAction("validate html", self)

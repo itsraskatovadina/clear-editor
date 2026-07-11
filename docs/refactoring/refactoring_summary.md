@@ -117,7 +117,7 @@ clear_editor/
 │   └── views/
 │       ├── plugin_ui.py
 │       └── plugin_widget.py
-├── plugins/                    # wordcount, textprocessing, iclear, htmlprocessing
+├── plugins/                    # wordcount, textprocessing, iclear, htmltools
 ├── tests/                      # model/service tests
 ├── docs/
 │   ├── refactoring/            # итоговые документы

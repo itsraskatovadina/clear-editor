@@ -142,7 +142,7 @@ tests/
 5. iclear-плагин — перевести на FileTabSrv API
    → editor.tab_panel → editor.file_tab_srv / editor.file_tab_view
    После этой доработки проверить межплагинную связь:
-   iclear → htmlprocessing.validate_html (отложено до завершения рефакторинга)
+   iclear → htmltools.validate_html (отложено до завершения рефакторинга)
 
 РЕКОМЕНДАЦИЯ 7: dependency injection ВМЕСТО ПРЯМОГО СОЗДАНИЯ
 ---------------------------------------------------------------
@@ -227,7 +227,7 @@ clear_editor/
 │       └── plugin_widget.py    ← QDialog списка плагинов
 ├── plugins/
 │   ├── textprocessing/
-│   ├── htmlprocessing/
+│   ├── htmltools/
 │   └── iclear/                 ← требует доработки под новое API
 ├── tests/
 │   ├── test_document.py

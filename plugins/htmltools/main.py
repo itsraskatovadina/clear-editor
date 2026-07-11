@@ -68,8 +68,8 @@ class ValErrorsDialog(QDialog):
                 self._editor.setFocus()
 
 
-class HTMLProcessingPlugin(PluginBase):
-    name = "htmlprocessing"
+class HTMLToolsPlugin(PluginBase):
+    name = "htmltools"
     description = "Обработка HTML кода в редакторе"
 
     actions = [

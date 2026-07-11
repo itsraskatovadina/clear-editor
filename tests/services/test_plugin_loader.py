@@ -25,7 +25,7 @@ def test_discover():
     available = registry.get_available()
     names = [m["name"] for m in available]
     assert "textprocessing" in names
-    assert "htmlprocessing" in names
+    assert "htmltools" in names
     assert "iclear" in names
     print("  OK discover finds all plugins")
 
