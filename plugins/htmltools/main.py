@@ -89,7 +89,7 @@ class HTMLToolsPlugin(PluginBase):
     menu_items = [
         {
             "kind": "menu",
-            "text": "Edit",
+            "text": "Tools",
             "content": [
                 {
                     "kind": "menu",

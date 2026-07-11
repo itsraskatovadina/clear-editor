@@ -1,0 +1,153 @@
+ПЛАГИН TEXTPROCESSING — Обработка текста
+==========================================
+
+1. НАЗНАЧЕНИЕ
+---------------
+Плагин для обработки выделенного текста в редакторе.
+Предоставляет набор действий: удаление пустых строк, капитализация,
+замена HTML-сущностей, оборачивание в теги, создание списков и таблиц.
+
+2. ЖИЗНЕННЫЙ ЦИКЛ
+------------------
+
+  PluginManager.activate()
+    → on_load(editor) — сохраняет EditorApp
+    → plugin_ui строит меню Edit, тулбар с кнопками
+
+  PluginManager.deactivate()
+    → on_unload() — очищает ссылки
+
+3. UI-ДЕКЛАРАЦИЯ
+-----------------
+
+  actions = [
+    {"id": "remove_empty",     "text": "Remove empty lines",    "callback": "remove_empty_lines_in_selected"},
+    {"id": "capitalize_first", "text": "Capitalize first letters", "callback": "capitalize_first_letters_in_selected"},
+    {"id": "replace_entity",   "text": "Replace entity",        "callback": "replace_entity_in_selected"},
+    {"id": "wrap_p",           "text": "Wrap <p>",  "short_text": "<p>", "callback": "wrap_p_in_selected"},
+    {"id": "wrap_b",           "text": "Wrap <b>",  "short_text": "<b>", "callback": "wrap_b_in_selected"},
+    {"id": "unwrap",           "text": "Unwrap",                "callback": "unwrap_in_selected"},
+    {"id": "make_list",        "text": "Make list",  "short_text": "<ul>", "callback": "make_list_in_selected"},
+    {"id": "make_nested_list", "text": "Nested list", "short_text": "<ul+>", "callback": "make_nested_list_in_selected"},
+    {"id": "make_table",       "text": "Make table",            "callback": "make_table_in_selected"},
+  ]
+
+  menu_items:
+    Edit
+    ├── Remove empty lines
+    ├── Capitalize first letters
+    ├── ─────────
+    ├── Wrap <p>
+    ├── Wrap <b>
+    ├── Unwrap
+    ├── ─────────
+    ├── Make list
+    ├── Nested list
+    └── Make table
+
+  toolbar_items: Wrap <p>, Wrap <b>, Make list, Nested list
+
+4. ОБЩИЙ МЕТОД
+---------------
+
+4.1. selectedTextProcessing(func, **kwargs)
+
+  Базовый метод для всех действий над выделенным текстом.
+  Все callback-методы вызывают его, передавая свою функцию-преобразователь.
+
+  Алгоритм:
+    1. Получить textCursor() из текущего редактора
+    2. Если нет выделения → выйти (return False)
+    3. Получить выделенный текст (с заменой \u2029 → \n)
+    4. Применить func(selected_text, **kwargs) → out_text
+    5. В beginEditBlock()/endEditBlock():
+       - Удалить выделенный текст
+       - Вставить out_text
+    6. Выделить вставленный текст (для возможности повторных операций)
+    7. Вернуть True
+
+5. ДЕЙСТВИЯ
+-------------
+
+5.1. remove_empty_lines_in_selected()
+
+  Удаляет пустые строки из выделенного блока.
+  Пустая строка = строка после strip() даёт пустую строку.
+  Результат: все пустые строки удаляются, непустые сохраняются.
+
+5.2. capitalize_first_letters_in_selected()
+
+  Капитализирует первую букву каждой строки.
+  Если строка пустая — остаётся пустой.
+
+5.3. replace_entity_in_selected()
+
+  Заменяет HTML-сущности:
+    & → &amp;
+    < → &lt;
+    > → &gt;
+
+5.4. wrap_p_in_selected()
+
+  Оборачивает каждую непустую строку в <p>...</p>.
+  Пустые строки остаются без изменений.
+
+5.5. wrap_b_in_selected()
+
+  Оборачивает весь выделенный текст в <b>...</b>.
+
+5.6. unwrap_in_selected()
+
+  Снимает внешний HTML-тег с выделенного текста.
+  Алгоритм:
+    1. Убрать пробелы по краям
+    2. Найти первый > (конец открывающего тега)
+    3. Извлечь имя тега
+    4. Если текст заканчивается на </tag_name> — удалить оба тега
+    5. Иначе — вернуть текст без изменений
+
+5.7. make_list_in_selected()
+
+  Преобразует выделенный текст в HTML-список:
+    - Каждая непустая строка → <li>...</li>
+    - Оборачивается в <ul>...</ul>
+
+5.8. make_nested_list_in_selected()
+
+  Преобразует текст с отступами в вложенный HTML-список.
+  Глубина вложенности определяется количеством пробелов (4 пробела = 1 уровень).
+  Алгоритм:
+    1. Разбить на строки, пропустить пустые
+    2. Для каждой строки вычислить depth = len(raw) // 4
+    3. Построить дерево через стек
+    4. Рекурсивно отрендерить в <ul>/<li> с отступами
+
+5.9. make_table_in_selected()
+
+  Преобразует текст в HTML-таблицу.
+  Формат ввода: строки разделены \n, ячейки разделены \t.
+  Результат:
+    <table>
+        <tr>
+            <td>cell1</td>
+            <td>cell2</td>
+        </tr>
+    </table>
+
+6. ТУЛБАР
+----------
+
+  Плагин создаёт собственный тулбар с кнопками:
+    <p>  — Wrap <p>
+    <b>  — Wrap <b>
+    <ul> — Make list
+    <ul+> — Nested list
+
+  short_text используется как текст кнопки в тулбаре.
+
+7. ЗАВИСИМОСТИ
+---------------
+
+  - Требует EditorApp с current_editor() (доступ к QTextCursor)
+  - Не зависит от других плагинов
+  - Меню Edit создаётся через MenuService (register_menu)

@@ -70,18 +70,13 @@ class TextProcessingPlugin(PluginBase):
                 index_actions["remove_empty"],
                 index_actions["capitalize_first"],
                 {"kind": "separator"},
-                {
-                    "kind": "menu",
-                    "text": "HTML",
-                    "content": [
-                        index_actions["wrap_p"],
-                        index_actions["wrap_b"],
-                        index_actions["unwrap"],
-                        index_actions["make_list"],
-                        index_actions["make_nested_list"],
-                        index_actions["make_table"],
-                    ],
-                },
+                index_actions["wrap_p"],
+                index_actions["wrap_b"],
+                index_actions["unwrap"],
+                {"kind": "separator"},
+                index_actions["make_list"],
+                index_actions["make_nested_list"],
+                index_actions["make_table"],
             ],
         }
     ]
